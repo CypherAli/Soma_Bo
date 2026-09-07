@@ -15,6 +15,33 @@ import { apiRequest, type Role } from "@/lib/auth";
 export type Locale3 = "vi" | "en" | "zh";
 export const LOCALES: Locale3[] = ["vi", "en", "zh"];
 
+/** Một mục cụ thể trong thẻ việc-còn-tồn trên bảng điều khiển. */
+export type AttentionItem = {
+  /** id của BỆNH LÝ (hoặc cấu trúc) để bấm vào là mở đúng bản ghi. */
+  id: string;
+  title: string;
+  subtitle: string | null;
+};
+
+export type AttentionBucket = { total: number; items: AttentionItem[] };
+
+/**
+ * Các hạng mục việc còn tồn.
+ *
+ * Backend chỉ trả DỮ LIỆU (số và vài mục mẫu); tiêu đề, màu và đường đi là việc
+ * của giao diện — xem `OverviewPanel`. Nhét chữ nghĩa vào backend thì sửa một
+ * nhãn cũng phải deploy lại máy chủ.
+ */
+export type Attention = {
+  needsReview: AttentionBucket;
+  unverifiedCitations: AttentionBucket;
+  machineTranslated: AttentionBucket;
+  withoutStructure: AttentionBucket;
+  withoutCitation: AttentionBucket;
+  structuresMissingDescription: AttentionBucket;
+  sourcesAtRisk: AttentionBucket;
+};
+
 export type Overview = {
   content: {
     pathologies: number;
@@ -35,6 +62,7 @@ export type Overview = {
   };
   people: { users: number; disabledUsers: number; attempts: number };
   recentAudit: AuditEntry[];
+  attention: Attention;
 };
 
 export type AuditEntry = {

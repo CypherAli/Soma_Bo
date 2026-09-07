@@ -41,7 +41,16 @@ export default function AuditPanel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  /*
+   * `isCurrent` chặn lượt tải CŨ về muộn ghi đè lượt mới.
+   *
+   * Đã trả giá: bấm một cấu trúc từ thanh tìm kiếm thì panel gửi lượt KHÔNG lọc
+   * trước (lúc vừa gắn), rồi mới gửi lượt có lọc — lượt đầu trả về sau và xoá
+   * sạch kết quả đúng. Trên màn hình: ô lọc có chữ mà bảng vẫn 200 dòng, không
+   * lỗi nào báo ra. Cùng loại lỗi mà `ViewerPathologyPanel` bên Soma_Fe đã gặp.
+   */
+  const load = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
     // Nhường một nhịp trước khi chạm vào state, đúng quy ước đã dùng ở
     // `HomeNav`: gọi setState ĐỒNG BỘ trong thân effect thì React Compiler báo
     // lỗi "cascading renders", và cảnh báo đó đúng — lần dựng đầu sẽ render hai
@@ -49,26 +58,33 @@ export default function AuditPanel() {
     await Promise.resolve();
     try {
       const result = await adminApi.audit({ entity, actorEmail: actor, page });
+      if (!isCurrent()) return;
       setRows(result.items);
       setTotal(result.total);
       setPageSize(result.pageSize);
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không nạp được nhật ký");
+      if (isCurrent()) setError(e instanceof Error ? e.message : "Không nạp được nhật ký");
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [entity, actor, page]);
+    },
+    [entity, actor, page],
+  );
 
   useEffect(() => {
     // Bọc trong một hàm async khai ngay trong effect và nhường một nhịp trước
     // khi gọi: gọi thẳng `load()` thì React Compiler coi là setState đồng bộ
     // trong effect và báo lỗi "cascading renders". Cùng khuôn với `HomeNav`.
+    let alive = true;
     async function run() {
       await Promise.resolve();
-      await load();
+      await load(() => alive);
     }
     void run();
+    return () => {
+      alive = false;
+    };
   }, [load]);
 
   const lastPage = Math.max(1, Math.ceil(total / pageSize));

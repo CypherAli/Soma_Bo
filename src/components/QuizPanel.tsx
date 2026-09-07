@@ -27,27 +27,43 @@ export default function QuizPanel() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
 
-  const load = useCallback(async () => {
+  /*
+   * `isCurrent` chặn lượt tải CŨ về muộn ghi đè lượt mới.
+   *
+   * Đã trả giá: bấm một cấu trúc từ thanh tìm kiếm thì panel gửi lượt KHÔNG lọc
+   * trước (lúc vừa gắn), rồi mới gửi lượt có lọc — lượt đầu trả về sau và xoá
+   * sạch kết quả đúng. Trên màn hình: ô lọc có chữ mà bảng vẫn 200 dòng, không
+   * lỗi nào báo ra. Cùng loại lỗi mà `ViewerPathologyPanel` bên Soma_Fe đã gặp.
+   */
+  const load = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
     await Promise.resolve();
     try {
       const result = await adminApi.quizzes({ systemId, q: search, page });
+      if (!isCurrent()) return;
       setRows(result.items);
       setTotal(result.total);
       setPageSize(result.pageSize);
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không nạp được câu hỏi");
+      if (isCurrent()) setError(e instanceof Error ? e.message : "Không nạp được câu hỏi");
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [systemId, search, page]);
+    },
+    [systemId, search, page],
+  );
 
   useEffect(() => {
+    let alive = true;
     async function run() {
       await Promise.resolve();
-      await load();
+      await load(() => alive);
     }
     void run();
+    return () => {
+      alive = false;
+    };
   }, [load]);
 
   useEffect(() => {

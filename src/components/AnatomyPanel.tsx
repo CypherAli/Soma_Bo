@@ -8,6 +8,7 @@ import {
   type Species,
   type StructureRow,
 } from "@/lib/admin";
+import type { Jump } from "./AdminShell";
 
 type View = "structures" | "systems" | "species";
 
@@ -25,7 +26,14 @@ const LOCALE_NAME: Record<string, string> = {
  * xuống theo cây chứ không nhảy ngang. Bấm số cấu trúc ở một hệ là sang thẳng
  * danh sách cấu trúc đã lọc theo hệ đó.
  */
-export default function AnatomyPanel() {
+export default function AnatomyPanel({
+  jump,
+  onJumpDone,
+}: {
+  /** Yêu cầu lọc sẵn theo một mã cấu trúc, từ thanh tìm kiếm. */
+  jump: Jump | null;
+  onJumpDone: () => void;
+}) {
   const [view, setView] = useState<View>("structures");
   const [species, setSpecies] = useState<Species[]>([]);
   const [systems, setSystems] = useState<AnatomySystem[]>([]);
@@ -60,7 +68,16 @@ export default function AnatomyPanel() {
     }
   }, []);
 
-  const load = useCallback(async () => {
+  /*
+   * `isCurrent` chặn lượt tải CŨ về muộn ghi đè lượt mới.
+   *
+   * Đã trả giá: bấm một cấu trúc từ thanh tìm kiếm thì panel gửi lượt KHÔNG lọc
+   * trước (lúc vừa gắn), rồi mới gửi lượt có lọc — lượt đầu trả về sau và xoá
+   * sạch kết quả đúng. Trên màn hình: ô lọc có chữ mà bảng vẫn 200 dòng, không
+   * lỗi nào báo ra. Cùng loại lỗi mà `ViewerPathologyPanel` bên Soma_Fe đã gặp.
+   */
+  const load = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
     await Promise.resolve();
     try {
       const result = await adminApi.structures({
@@ -70,16 +87,21 @@ export default function AnatomyPanel() {
         missingDescription: missing,
         page,
       });
+      if (!isCurrent()) return;
       setRows(result.items);
       setTotal(result.total);
       setPageSize(result.pageSize);
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không nạp được cấu trúc");
+      if (isCurrent()) {
+          setError(e instanceof Error ? e.message : "Không nạp được cấu trúc");
+        }
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [search, speciesId, systemId, missing, page]);
+    },
+    [search, speciesId, systemId, missing, page],
+  );
 
   useEffect(() => {
     async function run() {
@@ -91,12 +113,34 @@ export default function AnatomyPanel() {
 
   useEffect(() => {
     if (view !== "structures") return;
+    let alive = true;
     async function run() {
       await Promise.resolve();
-      await load();
+      await load(() => alive);
     }
     void run();
+    return () => {
+      alive = false;
+    };
   }, [view, load]);
+
+  /* Đặt sẵn từ khoá tìm rồi xoá yêu cầu ngay, cùng lý do với `PathologyPanel`. */
+  useEffect(() => {
+    if (jump?.tab !== "anatomy" || !("structureQuery" in jump)) return;
+    const text = jump.structureQuery;
+    // Nhường một nhịp và bọc trong hàm async khai tại chỗ: gọi setState đồng bộ
+    // trong thân effect thì React Compiler báo "cascading renders". Cùng khuôn
+    // với các effect nạp dữ liệu ở panel này.
+    async function run() {
+      await Promise.resolve();
+      setView("structures");
+      setQ(text);
+      setSearch(text);
+      setPage(1);
+      onJumpDone();
+    }
+    void run();
+  }, [jump, onJumpDone]);
 
   const changeFilter = (apply: () => void) => {
     apply();
