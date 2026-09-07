@@ -61,12 +61,29 @@ Bậc quyền, từ thấp lên cao:
 | Khu | Nội dung |
 | --- | --- |
 | Bảng điều khiển | Số liệu nội dung, **kèm phần còn thiếu** — độ phủ ba ngôn ngữ, số bài chưa ai duyệt, số trích dẫn chưa đối chiếu |
-| Bệnh lý | Soạn nội dung theo từng ngôn ngữ, sửa thuộc tính, thêm/duyệt/xoá trích dẫn. Lọc được theo "chưa có bản dịch \<ngôn ngữ\>" |
+| Bệnh lý | Soạn nội dung theo từng ngôn ngữ, sửa thuộc tính, neo vào cấu trúc 3D, thêm/duyệt/xoá trích dẫn. Lọc được theo "chưa có bản dịch \<ngôn ngữ\>" |
+| Giải phẫu | Ba khung nhìn theo tầng của cùng một cây: loài (7) → hệ cơ quan (55) → cấu trúc (200). Tên ba ngôn ngữ, tên Latin, mã TA, mô tả. Lọc được theo "chưa có mô tả \<ngôn ngữ\>" |
+| Trắc nghiệm | Câu hỏi **trong cơ sở dữ liệu** và phương án của chúng. Đổi đáp án đúng sẽ tự bỏ đúng ở các phương án còn lại |
 | Tài liệu y khoa | Danh mục nguồn và số bệnh đang dựa vào từng nguồn |
 | Tài khoản | Phân quyền, khoá tài khoản (khoá là cắt mọi phiên đang mở ngay) |
 | Nhật ký | Ai đổi gì, lúc nào, **và giá trị trước khi đổi** |
 
-## Ba trường cố ý không cho sửa
+### Những gì back office CỐ Ý không quản lý
+
+- **Ngân hàng đề 257 câu** theo vùng cơ thể: là mã TypeScript trong Soma_Fe, gác
+  bởi `npm run verify:quiz-bank`. Bảng `quiz_questions` trong cơ sở dữ liệu chỉ
+  có mấy câu mẫu theo hệ cơ quan; khu Trắc nghiệm nói rõ điều này ngay trên giao
+  diện để không ai tưởng mình vừa xoá hết đề của trang.
+- **Chữ tĩnh của trang ngoài** (nhãn, menu, nội dung trang chủ): là mã TypeScript
+  trong Soma_Fe. Đây là công cụ quản trị dữ liệu, không phải CMS sửa từng chữ.
+- **Cảnh và điểm chú giải 3D** (1310 hotspot, 130 model): gác bởi
+  `npm run verify:scenes` và `verify:models` bên Soma_Fe, vì chúng phải khớp
+  node thật trong file glTF.
+- **Tài liệu cá nhân, bộ đề riêng và bộ nhớ hội thoại của người dùng.** Trang web
+  hứa "chỉ tài khoản của bạn truy cập"; cho quản trị đọc được là phá lời hứa đó.
+  Khu Tài khoản chỉ hiện SỐ LƯỢNG, không hiện nội dung.
+
+## Những trường cố ý không cho sửa
 
 - `lesionMesh` / `lesionSystem` — phải khớp tên mesh thật trong file glTF, và cái
   giữ cho chúng khớp là `npm run verify:lesions` ở Soma_Fe. Cho gõ tay thì một
@@ -74,6 +91,8 @@ Bậc quyền, từ thấp lên cao:
   lỗi, không cảnh báo, không ai biết.
 - `slug` — là địa chỉ công khai của bài bệnh và nằm trong `data/slug-alias.json`
   của Soma_Fe; đổi ở đây là làm chết liên kết ngoài.
+- `meshName` của cấu trúc — cùng loại rủi ro, gác bởi `npm run verify:scenes`.
+- `code` của loài / hệ / cấu trúc — mọi thứ đang trỏ tới chúng dùng chính mã đó.
 
 `severity` để trống thì cứ để trống: mức độ nặng là phán đoán chuyên môn, không
 phải ô cần điền cho đủ.
