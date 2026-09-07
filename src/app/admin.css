@@ -1,161 +1,475 @@
 /*
  * Back office Soma 3D.
  *
+ * Bố cục ba khối như mọi trang quản trị nghiệp vụ: THANH TRÊN (thương hiệu, tìm
+ * kiếm, hành động, tài khoản) — SIDEBAR nhóm theo việc — VÙNG NỘI DUNG. Đây là
+ * bố cục người dùng đã quen ở phần mềm quản trị khác, nên không phải học lại.
+ *
  * Cố ý KHÔNG dùng lại `home.css` của Soma_Fe: trang ngoài là trang giới thiệu,
  * chữ to, nhiều khoảng trắng, serif — đúng cho người đọc lướt, sai cho người
- * ngồi sửa hai trăm bản ghi. Ở đây ưu tiên MẬT ĐỘ: bảng chật, chữ nhỏ, mọi
- * trạng thái đọc được ngay không cần rê chuột.
+ * ngồi sửa hai trăm bản ghi. Ở đây ưu tiên MẬT ĐỘ.
  *
- * Một bộ biến màu cho nền sáng, ghi đè cho nền tối theo đúng `data-theme` mà
- * cả trang web đang dùng, để back office không phải là chỗ duy nhất chói mắt.
+ * Bộ màu khai ở CẤP TÀI LIỆU, không phải trên `.bo`. Đã trả giá: lúc đầu cả bộ
+ * nằm trong `.bo` (khung chính) nên khung đăng nhập — vốn nằm NGOÀI `.bo` —
+ * không thấy biến nào cả, ô nhập và nút mất hết viền, thành trong suốt trên nền
+ * tối: form vẫn chạy mà không ai nhìn ra là có ô để gõ.
  */
 
-/*
- * Bộ màu khai ở CẤP TÀI LIỆU, không phải trên `.bo`.
- *
- * Đã trả giá: lúc đầu cả bộ nằm trong `.bo` (khung chính), nên khung đăng nhập
- * — vốn nằm NGOÀI `.bo` — không thấy biến nào cả. Ô nhập và nút mất hết viền,
- * mất nền, thành trong suốt trên nền tối: form vẫn hoạt động mà không ai nhìn
- * ra là có ô để gõ.
- */
 :root {
-  --bo-bg: #f6f7f9;
+  /* Xanh dương là màu thương hiệu của khu quản trị: sidebar, nút chính, liên
+     kết. KHÔNG dùng nó cho trạng thái — xem chú thích ở nhóm màu ngữ nghĩa. */
+  --bo-brand: #16337a;
+  --bo-brand-2: #1e4bb8;
+  --bo-brand-fg: #ffffff;
+  --bo-brand-dim: #a9bde8;
+  --bo-accent: #1e56d6;
+  --bo-accent-soft: #e8efff;
+
+  --bo-bg: #f4f6fa;
   --bo-panel: #ffffff;
-  --bo-side: #171a1f;
-  --bo-side-fg: #c3cad6;
-  --bo-line: #e2e6ec;
-  --bo-fg: #1b2129;
-  --bo-muted: #667085;
-  --bo-accent: #2f6bd8;
-  --bo-good: #157a4a;
-  --bo-warn: #9a6212;
+  --bo-line: #dfe4ed;
+  --bo-line-2: #eef1f6;
+  --bo-fg: #161d29;
+  --bo-muted: #5d6a80;
+
+  /*
+   * Màu NGỮ NGHĨA, cố ý không đổi sang xanh dương.
+   *
+   * Xanh dương là màu thương hiệu; nếu lỗi cũng xanh, cảnh báo cũng xanh thì
+   * mắt không còn phân biệt được "cần làm" với "chỉ là nhãn". Đỏ/hổ phách/lục ở
+   * đây mang thông tin, không phải trang trí.
+   */
+  --bo-good: #12734a;
+  --bo-warn: #8a5a06;
   --bo-bad: #b3261e;
-  --bo-good-bg: #e6f5ed;
-  --bo-warn-bg: #fdf3e2;
+  --bo-good-bg: #e4f5ec;
+  --bo-warn-bg: #fdf2df;
   --bo-bad-bg: #fdeceb;
+  --bo-good-line: #9dd4b8;
+  --bo-warn-line: #e8c98a;
+  --bo-bad-line: #eeb4b0;
+
   --bo-radius: 10px;
+  --bo-shadow: 0 1px 2px #0f172a0d, 0 8px 24px #0f172a0a;
 }
+
+html[data-theme="dark"] {
+  --bo-brand: #0d1a38;
+  --bo-brand-2: #16337a;
+  --bo-brand-fg: #eaf0ff;
+  --bo-brand-dim: #8296bf;
+  --bo-accent: #6f9bff;
+  --bo-accent-soft: #16233f;
+
+  --bo-bg: #10141c;
+  --bo-panel: #171d28;
+  --bo-line: #28303f;
+  --bo-line-2: #1e2530;
+  --bo-fg: #e6ecf5;
+  --bo-muted: #8c98ac;
+
+  --bo-good: #63d49b;
+  --bo-warn: #e2b263;
+  --bo-bad: #f28e86;
+  --bo-good-bg: #133126;
+  --bo-warn-bg: #322610;
+  --bo-bad-bg: #351d1c;
+  --bo-good-line: #1e5340;
+  --bo-warn-line: #55421a;
+  --bo-bad-line: #5c2f2c;
+
+  --bo-shadow: 0 1px 2px #0006, 0 8px 24px #0004;
+}
+
+/* ====================================================================== khung */
 
 .bo {
   position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
-  grid-template-columns: 232px 1fr;
+  grid-template-columns: var(--bo-side-w, 236px) 1fr;
+  grid-template-rows: 52px 1fr;
+  grid-template-areas:
+    "brand topbar"
+    "side  main";
   overflow: hidden;
   background: var(--bo-bg);
   color: var(--bo-fg);
-  font: 13px/1.5 var(--font-sans), system-ui, sans-serif;
+  font: 13px/1.5 var(--sans);
+}
+/* Thu gọn sidebar: chỉ đổi MỘT biến, mọi thứ khác tự co theo. */
+.bo.is-narrow {
+  --bo-side-w: 62px;
 }
 
-html[data-theme="dark"] {
-  --bo-bg: #14161a;
-  --bo-panel: #1c1f25;
-  --bo-side: #0f1114;
-  --bo-side-fg: #9aa4b2;
-  --bo-line: #2b3038;
-  --bo-fg: #e8ecf2;
-  --bo-muted: #8d97a6;
-  --bo-accent: #6f9bff;
-  --bo-good: #62d29a;
-  --bo-warn: #e0b061;
-  --bo-bad: #f08b84;
-  --bo-good-bg: #16342a;
-  --bo-warn-bg: #33290f;
-  --bo-bad-bg: #38201f;
-}
+/* --------------------------------------------------------------- thanh trên */
 
-/* ---------------------------------------------------------------- thanh bên */
-
-.bo-side {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  overflow: hidden;
-  background: var(--bo-side);
-  color: var(--bo-side-fg);
-}
-.bo-brand {
-  display: grid;
-  gap: 2px;
-  padding: 18px 18px 14px;
-  border-bottom: 1px solid #ffffff14;
-}
-.bo-brand b {
-  color: #fff;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-}
-.bo-brand span {
-  color: #7d8899;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.bo-nav {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  overflow-y: auto;
-  padding: 12px 10px;
-}
-.bo-nav button {
+.bo-brandbar {
+  grid-area: brand;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  width: 100%;
-  padding: 9px 11px;
+  padding: 0 12px;
+  background: var(--bo-brand);
+  color: var(--bo-brand-fg);
+}
+.bo-burger {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   border: 0;
+  border-radius: 7px;
+  background: #ffffff1f;
+  color: inherit;
+  cursor: pointer;
+}
+.bo-burger:hover {
+  background: #ffffff33;
+}
+.bo-brandbar > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+.bo-brandbar b {
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.bo-brandbar span {
+  color: var(--bo-brand-dim);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.bo.is-narrow .bo-brandbar > div {
+  display: none;
+}
+
+/* Nút mở thanh bên của màn hẹp: chỉ hiện trong media query bên dưới. */
+.bo-burger-m {
+  display: none;
+}
+
+.bo-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--bo-line);
+  background: var(--bo-panel);
+}
+
+.bo-search {
+  position: relative;
+  flex: 0 1 340px;
+  margin-right: auto;
+}
+.bo-search input {
+  width: 100%;
+  padding: 7px 46px 7px 30px;
+  border: 1px solid var(--bo-line);
   border-radius: 8px;
+  background: var(--bo-bg);
+  color: var(--bo-fg);
+  font: inherit;
+}
+.bo-search input:focus {
+  outline: 2px solid color-mix(in srgb, var(--bo-accent) 45%, transparent);
+  outline-offset: -1px;
+}
+.bo-search > svg {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  color: var(--bo-muted);
+  pointer-events: none;
+}
+.bo-search kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 1px 5px;
+  border: 1px solid var(--bo-line);
+  border-radius: 5px;
+  background: var(--bo-panel);
+  color: var(--bo-muted);
+  font: 10px/1.5 var(--sans);
+  pointer-events: none;
+}
+
+/* Bảng kết quả tìm nhanh. Cố ý đè lên nội dung chứ không đẩy nó xuống: đẩy thì
+   cả trang nhảy mỗi lần gõ một chữ. */
+.bo-results {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--bo-line);
+  border-radius: 10px;
+  background: var(--bo-panel);
+  box-shadow: var(--bo-shadow);
+}
+.bo-results > b {
+  display: block;
+  padding: 7px 9px 4px;
+  color: var(--bo-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.bo-results button {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.16s, color 0.16s;
 }
-.bo-nav button:hover {
-  background: #ffffff0f;
+.bo-results button:hover {
+  background: var(--bo-accent-soft);
+}
+.bo-results button strong {
+  font-weight: 600;
+}
+.bo-results button em {
+  color: var(--bo-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+.bo-results p {
+  margin: 0;
+  padding: 10px;
+  color: var(--bo-muted);
+  text-align: center;
+}
+
+.bo-iconbtn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid var(--bo-line);
+  border-radius: 8px;
+  background: var(--bo-panel);
+  color: var(--bo-muted);
+  cursor: pointer;
+}
+.bo-iconbtn:hover {
+  border-color: var(--bo-accent);
+  color: var(--bo-accent);
+}
+.bo-iconbtn svg {
+  width: 15px;
+  height: 15px;
+}
+/* Số việc tồn trên chuông. Không có việc thì KHÔNG hiện chấm — một chấm đỏ
+   thường trực là một chấm không ai nhìn nữa. */
+.bo-iconbtn i {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--bo-bad);
+  color: #fff;
+  font: 700 9.5px/16px var(--sans);
+  font-style: normal;
+  text-align: center;
+}
+
+.bo-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 999px;
+  background: var(--bo-brand-2);
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ sidebar */
+
+.bo-side {
+  grid-area: side;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  background: var(--bo-brand);
+  color: var(--bo-brand-dim);
+}
+.bo-nav {
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  overflow-y: auto;
+  padding: 10px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff2e transparent;
+}
+.bo-nav-group > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #ffffff9c;
+  font: 600 9.5px/1.4 var(--sans);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+.bo-nav-group > button:hover {
   color: #fff;
 }
-.bo-nav button.is-on {
-  background: #ffffff17;
+.bo-nav-group > button svg {
+  width: 11px;
+  height: 11px;
+  transition: transform 0.18s;
+}
+.bo-nav-group.is-open > button svg {
+  transform: rotate(90deg);
+}
+.bo-nav a,
+.bo-nav > button,
+.bo-nav-group li button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.bo-nav ul {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bo-nav li button:hover,
+.bo-nav > button:hover {
+  background: #ffffff14;
+  color: #fff;
+}
+.bo-nav li button.is-on,
+.bo-nav > button.is-on {
+  background: #ffffff21;
   color: #fff;
   font-weight: 600;
+}
+.bo-nav .bo-ico-wrap {
+  display: grid;
+  place-items: center;
+  flex: 0 0 15px;
+  opacity: 0.85;
+}
+.bo-nav .bo-ico-wrap svg {
+  width: 15px;
+  height: 15px;
+}
+/* Nhãn: span KHÔNG phải bọc biểu tượng. Thiếu `:not()` thì cả ô biểu tượng
+   cũng bị `flex: 1` và đẩy chữ lệch hẳn sang phải. */
+.bo-nav span:not(.bo-ico-wrap) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 /* Con số việc-còn-tồn nằm ngay trên mục điều hướng: phải mở tab mới biết còn
    106 bài chưa duyệt thì sẽ không ai mở. */
 .bo-nav em {
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
-  background: #ffffff1c;
-  color: #dbe2ec;
-  font-size: 10px;
+  background: #ffffff26;
+  color: #eaf0ff;
+  font: 600 10px/1.5 var(--sans);
   font-style: normal;
-  font-weight: 600;
 }
+
+.bo.is-narrow .bo-nav span:not(.bo-ico-wrap),
+.bo.is-narrow .bo-nav em,
+.bo.is-narrow .bo-nav-group > button span {
+  display: none;
+}
+.bo.is-narrow .bo-nav-group > button {
+  justify-content: center;
+  padding: 6px;
+  margin-top: 8px;
+  border-top: 1px solid #ffffff1a;
+  border-radius: 0;
+}
+.bo.is-narrow .bo-nav li button,
+.bo.is-narrow .bo-nav > button {
+  justify-content: center;
+  padding: 9px 0;
+}
+
 .bo-me {
   display: grid;
-  gap: 8px;
-  padding: 14px;
-  border-top: 1px solid #ffffff14;
+  gap: 6px;
+  padding: 11px;
+  border-top: 1px solid #ffffff1a;
   font-size: 11px;
 }
 .bo-me b {
   color: #fff;
   font-size: 12px;
 }
-.bo-me span {
-  color: #7d8899;
+.bo-me > span {
+  color: var(--bo-brand-dim);
   overflow-wrap: anywhere;
 }
 .bo-me a,
 .bo-me button {
-  padding: 7px 10px;
-  border: 1px solid #ffffff1f;
+  padding: 6px 9px;
+  border: 1px solid #ffffff26;
   border-radius: 7px;
   background: transparent;
-  color: #c3cad6;
+  color: #dbe4f7;
   font: inherit;
   text-align: center;
   text-decoration: none;
@@ -163,13 +477,17 @@ html[data-theme="dark"] {
 }
 .bo-me a:hover,
 .bo-me button:hover {
-  background: #ffffff12;
+  background: #ffffff17;
   color: #fff;
+}
+.bo.is-narrow .bo-me {
+  display: none;
 }
 
 /* --------------------------------------------------------------- vùng chính */
 
 .bo-main {
+  grid-area: main;
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
@@ -179,15 +497,15 @@ html[data-theme="dark"] {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 24px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--bo-line);
   background: var(--bo-panel);
 }
 .bo-head h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 .bo-head p {
   margin: 3px 0 0;
@@ -196,28 +514,186 @@ html[data-theme="dark"] {
 }
 .bo-body {
   overflow-y: auto;
-  padding: 22px 24px 60px;
+  padding: 20px 22px 60px;
+}
+
+/* ============================================== thẻ trạng thái (bảng điều khiển) */
+
+/*
+ * Lưới thẻ tự xuống dòng theo bề rộng, không khai số cột cứng: số thẻ thay đổi
+ * theo dữ liệu (hạng mục nào sạch thì thành thẻ xanh gọn hơn), nên cột cứng sẽ
+ * để lại lỗ trống ở đúng những lúc mọi thứ đang tốt.
+ */
+.bo-alerts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.bo-alert {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--bo-line);
+  border-radius: 12px;
+  background: var(--bo-panel);
+  box-shadow: var(--bo-shadow);
+}
+.bo-alert.bad {
+  border-color: var(--bo-bad-line);
+}
+.bo-alert.warn {
+  border-color: var(--bo-warn-line);
+}
+.bo-alert.ok {
+  border-color: var(--bo-good-line);
+}
+
+.bo-alert > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--bo-line-2);
+}
+.bo-alert.ok > header {
+  border-bottom: 0;
+}
+.bo-alert > header svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+.bo-alert.bad > header {
+  background: var(--bo-bad-bg);
+  color: var(--bo-bad);
+}
+.bo-alert.warn > header {
+  background: var(--bo-warn-bg);
+  color: var(--bo-warn);
+}
+.bo-alert.ok > header {
+  background: var(--bo-good-bg);
+  color: var(--bo-good);
+}
+.bo-alert > header > div {
+  flex: 1;
+  min-width: 0;
+}
+.bo-alert > header strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+.bo-alert > header small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.bo-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font: 700 11px/1.5 var(--sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bo-alert.bad .bo-badge {
+  background: var(--bo-bad);
+  color: #fff;
+}
+.bo-alert.warn .bo-badge {
+  background: var(--bo-warn);
+  color: #fff;
+}
+
+.bo-alert ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bo-alert li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bo-line-2);
+}
+.bo-alert li:last-child {
+  border-bottom: 0;
+}
+.bo-alert li > svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin-top: 2px;
+  color: var(--bo-muted);
+}
+.bo-alert li > div {
+  flex: 1;
+  min-width: 0;
+}
+.bo-alert li strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.bo-alert li span {
+  display: block;
+  margin-top: 1px;
+  color: var(--bo-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.bo-alert li button {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bo-accent);
+  font: 600 11px/1.5 var(--sans);
+  cursor: pointer;
+}
+.bo-alert li button:hover {
+  text-decoration: underline;
+}
+.bo-alert > footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--bo-line-2);
+  background: color-mix(in srgb, var(--bo-bg) 55%, transparent);
+}
+.bo-alert > footer button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bo-accent);
+  font: 600 12px/1.5 var(--sans);
+  cursor: pointer;
+}
+.bo-alert > footer button:hover {
+  text-decoration: underline;
 }
 
 /* ------------------------------------------------------------------- thẻ số */
 
 .bo-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
   gap: 12px;
 }
 .bo-card {
   display: grid;
-  gap: 6px;
-  padding: 15px 16px;
+  gap: 5px;
+  padding: 14px 15px;
   border: 1px solid var(--bo-line);
   border-radius: var(--bo-radius);
   background: var(--bo-panel);
+  box-shadow: var(--bo-shadow);
 }
 .bo-card small {
   color: var(--bo-muted);
   font-size: 11px;
-  letter-spacing: 0.02em;
 }
 .bo-card b {
   font-size: 25px;
@@ -244,11 +720,11 @@ html[data-theme="dark"] {
 }
 .bo-section > h2 {
   margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 650;
+  color: var(--bo-muted);
+  font-size: 11.5px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--bo-muted);
 }
 
 /* Thanh đo độ phủ ngôn ngữ — số phần trăm một mình không cho thấy còn bao xa. */
@@ -259,6 +735,7 @@ html[data-theme="dark"] {
   border: 1px solid var(--bo-line);
   border-radius: var(--bo-radius);
   background: var(--bo-panel);
+  box-shadow: var(--bo-shadow);
 }
 .bo-meter header {
   display: flex;
@@ -268,9 +745,8 @@ html[data-theme="dark"] {
 .bo-meter header b {
   font-variant-numeric: tabular-nums;
 }
-/* Rãnh và phần đã lấp của thanh đo.
-   Bắt buộc dùng `>` : `.bo-meter span` không có dấu lớn hơn thì trúng luôn cả
-   tên ngôn ngữ trong `<header>` và tô nền xanh lên chữ. */
+/* Bắt buộc dùng `>`: `.bo-meter span` không có dấu lớn hơn thì trúng luôn cả
+   tên ngôn ngữ trong `<header>` và tô nền lên chữ. */
 .bo-meter > div {
   height: 6px;
   overflow: hidden;
@@ -284,13 +760,14 @@ html[data-theme="dark"] {
   background: var(--bo-accent);
 }
 
-/* ------------------------------------------------------------------- bảng */
+/* ======================================================================= bảng */
 
 .bo-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--bo-line);
   border-radius: var(--bo-radius);
   background: var(--bo-panel);
+  box-shadow: var(--bo-shadow);
 }
 .bo-table {
   width: 100%;
@@ -305,23 +782,23 @@ html[data-theme="dark"] {
   border-bottom: 1px solid var(--bo-line);
   background: var(--bo-panel);
   color: var(--bo-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
 }
 .bo-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--bo-line);
+  border-bottom: 1px solid var(--bo-line-2);
   vertical-align: top;
 }
 .bo-table tr:last-child td {
   border-bottom: 0;
 }
 .bo-table tbody tr:hover {
-  background: color-mix(in srgb, var(--bo-accent) 6%, transparent);
+  background: color-mix(in srgb, var(--bo-accent) 5%, transparent);
 }
 .bo-table td strong {
   font-weight: 600;
@@ -338,17 +815,16 @@ html[data-theme="dark"] {
   text-align: center;
 }
 
-/* ------------------------------------------------------------------- nhãn */
+/* ======================================================================= nhãn */
 
 .bo-tag {
   display: inline-block;
   padding: 2px 7px;
   border-radius: 5px;
-  background: var(--bo-line);
+  background: var(--bo-line-2);
   color: var(--bo-fg);
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 .bo-tag.good {
@@ -369,7 +845,7 @@ html[data-theme="dark"] {
   gap: 4px;
 }
 
-/* --------------------------------------------------------- điều khiển nhập */
+/* ============================================================ điều khiển nhập */
 
 .bo-bar {
   display: flex;
@@ -400,7 +876,7 @@ html[data-theme="dark"] {
 .bo-input:focus,
 .bo-select:focus,
 .bo-textarea:focus {
-  outline: 2px solid color-mix(in srgb, var(--bo-accent) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--bo-accent) 50%, transparent);
   outline-offset: -1px;
 }
 .bo-btn {
@@ -413,10 +889,11 @@ html[data-theme="dark"] {
   font-weight: 550;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.16s, border-color 0.16s;
+  transition: background 0.15s, border-color 0.15s;
 }
 .bo-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--bo-accent) 45%, var(--bo-line));
+  border-color: var(--bo-accent);
+  color: var(--bo-accent);
 }
 .bo-btn:disabled {
   opacity: 0.5;
@@ -427,6 +904,10 @@ html[data-theme="dark"] {
   background: var(--bo-accent);
   color: #fff;
 }
+.bo-btn.primary:hover:not(:disabled) {
+  background: var(--bo-brand-2);
+  color: #fff;
+}
 .bo-btn.danger {
   border-color: transparent;
   background: var(--bo-bad-bg);
@@ -435,6 +916,29 @@ html[data-theme="dark"] {
 .bo-btn.small {
   padding: 5px 9px;
   font-size: 11.5px;
+}
+
+/*
+ * Nút ĐI SÂU trong bảng (ví dụ "29 cấu trúc" ở hàng hệ cơ quan).
+ *
+ * Cố ý KHÔNG dùng `.bo-btn`: đã tự bấm nhầm khi kiểm thử — nó nằm ngay cạnh nút
+ * "Sửa", cùng hình dạng, nên tay đi theo hình chứ không đọc chữ. Cho nó dáng
+ * liên kết thì hai việc khác nhau trông khác nhau.
+ */
+.bo-drill {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bo-accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.bo-drill:hover {
+  text-decoration-thickness: 2px;
 }
 
 .bo-msg {
@@ -461,7 +965,7 @@ html[data-theme="dark"] {
   font-size: 12px;
 }
 
-/* ------------------------------------------------------------ ngăn chi tiết */
+/* ================================================================ ngăn chi tiết */
 
 .bo-drawer {
   position: fixed;
@@ -469,7 +973,7 @@ html[data-theme="dark"] {
   z-index: 70;
   display: grid;
   grid-template-columns: 1fr min(760px, 100%);
-  background: #0009;
+  background: #0f172a73;
 }
 .bo-drawer > button {
   border: 0;
@@ -488,7 +992,7 @@ html[data-theme="dark"] {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px 20px;
+  padding: 15px 20px;
   border-bottom: 1px solid var(--bo-line);
   background: var(--bo-panel);
 }
@@ -508,6 +1012,7 @@ html[data-theme="dark"] {
 
 .bo-locale-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 12px;
 }
@@ -525,6 +1030,7 @@ html[data-theme="dark"] {
 }
 .bo-locale-tabs button.is-on {
   border-color: var(--bo-accent);
+  background: var(--bo-accent-soft);
   color: var(--bo-fg);
   font-weight: 600;
 }
@@ -536,8 +1042,8 @@ html[data-theme="dark"] {
 }
 .bo-field > label {
   color: var(--bo-muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -556,11 +1062,11 @@ html[data-theme="dark"] {
 .bo-cite {
   display: grid;
   gap: 6px;
+  margin-bottom: 8px;
   padding: 12px 14px;
   border: 1px solid var(--bo-line);
   border-radius: var(--bo-radius);
   background: var(--bo-panel);
-  margin-bottom: 8px;
 }
 .bo-cite b {
   font-size: 12.5px;
@@ -585,7 +1091,7 @@ html[data-theme="dark"] {
   align-items: center;
 }
 
-/* --------------------------------------------------------------- cổng vào */
+/* ==================================================================== cổng vào */
 
 .bo-gate {
   position: fixed;
@@ -595,47 +1101,61 @@ html[data-theme="dark"] {
   place-items: center;
   padding: 24px;
   background: var(--bo-bg);
-  font: 13px/1.6 var(--font-sans), system-ui, sans-serif;
+  color: var(--bo-fg);
+  font: 13px/1.6 var(--sans);
 }
 .bo-gate > div {
   max-width: 400px;
   text-align: center;
 }
+.bo-gate h1 {
+  margin: 0 0 8px;
+  font-size: 19px;
+}
+.bo-gate p {
+  margin: 0 0 16px;
+  color: var(--bo-muted);
+}
 
 /* Khung đăng nhập. Hẹp và căn giữa, không có ảnh nền hay khẩu hiệu: đây là cửa
    của công cụ nội bộ, người vào đã biết mình vào đâu. */
 .bo-login {
-  width: min(370px, 100%);
+  width: min(378px, 100%);
   display: grid;
   gap: 2px;
-  padding: 26px 26px 22px;
+  padding: 0 0 22px;
+  overflow: hidden;
   border: 1px solid var(--bo-line);
   border-radius: 14px;
   background: var(--bo-panel);
-  box-shadow: 0 18px 44px #0000000d;
+  box-shadow: var(--bo-shadow);
   text-align: left;
-}
-html[data-theme="dark"] .bo-login {
-  box-shadow: 0 18px 44px #0000004d;
 }
 .bo-login-brand {
   display: grid;
   gap: 2px;
-  margin-bottom: 4px;
+  margin-bottom: 16px;
+  padding: 18px 26px;
+  background: var(--bo-brand);
+  color: var(--bo-brand-fg);
 }
 .bo-login-brand b {
   font-size: 16px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.03em;
 }
 .bo-login-brand span {
-  color: var(--bo-muted);
-  font-size: 10px;
+  color: var(--bo-brand-dim);
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
+.bo-login > *:not(.bo-login-brand) {
+  margin-left: 26px;
+  margin-right: 26px;
+}
 .bo-login-lead {
-  margin: 0 0 16px;
+  margin-bottom: 16px;
   color: var(--bo-muted);
   font-size: 12.5px;
   line-height: 1.6;
@@ -645,76 +1165,72 @@ html[data-theme="dark"] .bo-login {
   padding: 10px 14px;
 }
 .bo-login-note {
-  margin: 14px 0 0;
+  margin-top: 14px;
+  margin-bottom: 0;
   color: var(--bo-muted);
   font-size: 11.5px;
   line-height: 1.6;
 }
 
-/*
- * Nút ĐI SÂU trong bảng (ví dụ "29 cấu trúc" ở hàng hệ cơ quan).
- *
- * Cố ý KHÔNG dùng `.bo-btn`: đã tự bấm nhầm khi kiểm thử — nó nằm ngay cạnh
- * nút "Sửa", cùng hình dạng, nên tay đi theo hình chứ không đọc chữ. Cho nó
- * dáng LIÊN KẾT thì hai việc khác nhau trông khác nhau.
- */
-.bo-drill {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--bo-accent);
-  font: inherit;
-  font-weight: 600;
-  text-align: left;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-.bo-drill:hover {
-  text-decoration-thickness: 2px;
-}
-
-/* Nút đổi nền sáng/tối trong thanh bên. Soma_Fe có nút riêng của nó; back
-   office tách repo thì phải tự có, không thì bị khoá theo lựa chọn mà ứng dụng
-   kia đã ghi vào localStorage. */
-.bo-theme {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-}
-.bo-gate h1 {
-  margin: 0 0 8px;
-  font-size: 19px;
-}
-.bo-gate p {
-  margin: 0 0 16px;
-  color: #667085;
-}
-.bo-gate a {
-  display: inline-block;
-  padding: 9px 16px;
-  border-radius: 8px;
-  background: #2f6bd8;
-  color: #fff;
-  font-weight: 600;
-  text-decoration: none;
-}
-
 @media (max-width: 900px) {
+  /*
+   * Màn hẹp: sidebar thành ngăn TRƯỢT, không phải `display: none`.
+   *
+   * Ẩn hẳn thì nút thu gọn trên thanh trên vẫn còn mà bấm không ra gì, và người
+   * dùng mất sạch đường đi giữa các khu — trang thành một màn cụt.
+   */
   .bo {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 52px 1fr;
+    grid-template-areas:
+      "topbar"
+      "main";
+  }
+  .bo-brandbar {
+    display: none;
   }
   .bo-side {
-    grid-template-rows: auto auto;
+    position: fixed;
+    z-index: 65;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 244px;
+    box-shadow: 0 0 0 100vmax #0f172a80;
+    transition: transform 0.2s;
   }
-  .bo-nav {
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    overflow-x: auto;
+  /* Mặc định đóng. `is-narrow` ở đây mang nghĩa "đang đóng", cùng một cờ với
+     nút thu gọn trên màn rộng nên chỉ có MỘT trạng thái phải nghĩ tới. */
+  .bo.is-narrow .bo-side {
+    transform: translateX(-100%);
+    box-shadow: none;
   }
-  .bo-me {
+  /* Trên màn hẹp ngăn trượt luôn hiện đủ chữ, không co lại thành dải biểu tượng. */
+  .bo.is-narrow .bo-nav span:not(.bo-ico-wrap),
+  .bo.is-narrow .bo-nav em,
+  .bo.is-narrow .bo-nav-group > button span {
+    display: revert;
+  }
+  .bo.is-narrow .bo-me {
+    display: grid;
+  }
+  .bo.is-narrow .bo-nav-group > button,
+  .bo.is-narrow .bo-nav li button,
+  .bo.is-narrow .bo-nav > button {
+    justify-content: flex-start;
+    padding: 8px 10px;
+    border-top: 0;
+    border-radius: 7px;
+  }
+  .bo-burger-m {
+    display: grid;
+    background: var(--bo-line-2);
+    color: var(--bo-fg);
+  }
+  .bo-burger-m:hover {
+    background: var(--bo-line);
+  }
+  .bo-search kbd {
     display: none;
   }
   .bo-drawer {
