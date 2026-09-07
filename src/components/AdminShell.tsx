@@ -12,13 +12,22 @@ import {
 } from "@/lib/auth";
 import { adminApi, type Overview } from "@/lib/admin";
 import LoginPanel from "./LoginPanel";
+import AnatomyPanel from "./AnatomyPanel";
+import QuizPanel from "./QuizPanel";
 import OverviewPanel from "./OverviewPanel";
 import PathologyPanel from "./PathologyPanel";
 import UsersPanel from "./UsersPanel";
 import SourcesPanel from "./SourcesPanel";
 import AuditPanel from "./AuditPanel";
 
-type TabKey = "overview" | "pathologies" | "sources" | "users" | "audit";
+type TabKey =
+  | "overview"
+  | "pathologies"
+  | "anatomy"
+  | "quizzes"
+  | "sources"
+  | "users"
+  | "audit";
 
 const TABS: {
   key: TabKey;
@@ -40,6 +49,20 @@ const TABS: {
     label: "Bệnh lý",
     title: "Bệnh lý",
     hint: "Soạn nội dung ba ngôn ngữ, trích dẫn và duyệt chuyên môn",
+    min: "editor",
+  },
+  {
+    key: "anatomy",
+    label: "Giải phẫu",
+    title: "Loài · Hệ cơ quan · Cấu trúc",
+    hint: "Tên ba ngôn ngữ, tên Latin, mã TA và mô tả của 200 cấu trúc",
+    min: "editor",
+  },
+  {
+    key: "quizzes",
+    label: "Trắc nghiệm",
+    title: "Câu hỏi trắc nghiệm",
+    hint: "Chỉ các câu trong cơ sở dữ liệu — bộ đề chính nằm trong mã Soma_Fe",
     min: "editor",
   },
   {
@@ -263,6 +286,8 @@ export default function AdminShell() {
           {current.key === "pathologies" && (
             <PathologyPanel role={user.role} onChanged={refreshOverview} />
           )}
+          {current.key === "anatomy" && <AnatomyPanel />}
+          {current.key === "quizzes" && <QuizPanel />}
           {current.key === "sources" && <SourcesPanel />}
           {current.key === "users" && (
             <UsersPanel me={user} onChanged={refreshOverview} />

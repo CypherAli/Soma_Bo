@@ -118,6 +118,74 @@ export type Citation = {
 export type PathologyDetail = PathologyRow & {
   content: PathologyContent[];
   citations: Citation[];
+  /** Cấu trúc phụ mà bệnh còn ảnh hưởng tới, khác cấu trúc chính `structure`. */
+  relatedStructures: {
+    structure: { id: string; code: string; nameVi: string };
+  }[];
+};
+
+
+export type Species = {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  nameZh: string;
+  latin: string | null;
+  systems: number;
+  structures: number;
+};
+
+export type AnatomySystem = {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  nameZh: string;
+  latin: string | null;
+  order: number;
+  species: { id: string; code: string; nameVi: string };
+  structures: number;
+  quizzes: number;
+};
+
+export type StructureRow = {
+  id: string;
+  code: string;
+  meshName: string | null;
+  nameVi: string;
+  nameEn: string;
+  nameZh: string;
+  latin: string | null;
+  taCode: string | null;
+  descriptionVi: string | null;
+  descriptionEn: string | null;
+  descriptionZh: string | null;
+  system: { id: string; code: string; nameVi: string };
+  species: { id: string; code: string; nameVi: string };
+  parent: { code: string; nameVi: string } | null;
+  children: number;
+  pathologies: number;
+};
+
+export type QuizOption = {
+  id: string;
+  textVi: string;
+  textEn: string;
+  textZh: string;
+  latin: string | null;
+  isCorrect: boolean;
+};
+
+export type QuizQuestion = {
+  id: string;
+  promptVi: string;
+  promptEn: string;
+  promptZh: string;
+  explanation: string | null;
+  source: string | null;
+  system: { id: string; code: string; nameVi: string };
+  options: QuizOption[];
 };
 
 export type Page<T> = {
@@ -237,6 +305,100 @@ export const adminApi = {
 
   updateSource: (id: string, body: Partial<MedicalSource>) =>
     apiRequest<MedicalSource>(`/admin/sources/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  // ------------------------------------------- giải phẫu và trắc nghiệm
+  //
+  // Không có hàm tạo mới hay xoá: loài, hệ và cấu trúc đến từ dữ liệu nguồn và
+  // phải khớp với model 3D thật. Xem chú thích ở `AnatomyAdminController`.
+
+  species: () => apiRequest<Species[]>("/admin/species"),
+
+  updateSpecies: (id: string, body: Partial<Species>) =>
+    apiRequest<Species>(`/admin/species/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  systems: (params: { speciesId?: string; q?: string }) =>
+    apiRequest<AnatomySystem[]>(`/admin/systems${query(params)}`),
+
+  updateSystem: (id: string, body: Partial<AnatomySystem>) =>
+    apiRequest<AnatomySystem>(`/admin/systems/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  structures: (params: {
+    q?: string;
+    systemId?: string;
+    speciesId?: string;
+    missingDescription?: string;
+    page?: number;
+  }) => apiRequest<Page<StructureRow>>(`/admin/structures${query(params)}`),
+
+  updateStructure: (
+    id: string,
+    body: Partial<
+      Pick<
+        StructureRow,
+        | "nameVi"
+        | "nameEn"
+        | "nameZh"
+        | "latin"
+        | "taCode"
+        | "descriptionVi"
+        | "descriptionEn"
+        | "descriptionZh"
+      >
+    >,
+  ) =>
+    apiRequest<StructureRow>(`/admin/structures/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /** Neo bệnh lý vào cấu trúc 3D theo MÃ; `null` là bỏ neo. */
+  linkStructure: (pathologyId: string, structureCode: string | null) =>
+    apiRequest<{ structure: { code: string; nameVi: string } | null }>(
+      `/admin/pathologies/${pathologyId}/structure`,
+      { method: "PATCH", body: JSON.stringify({ structureCode }) },
+    ),
+
+  /** Cấu trúc PHỤ mà bệnh đa cơ quan còn ảnh hưởng tới (nhiều-nhiều). */
+  addRelatedStructure: (pathologyId: string, structureCode: string) =>
+    apiRequest<{ structure: { code: string; nameVi: string } }>(
+      `/admin/pathologies/${pathologyId}/related-structures`,
+      { method: "POST", body: JSON.stringify({ structureCode }) },
+    ),
+
+  removeRelatedStructure: (pathologyId: string, structureId: string) =>
+    apiRequest<{ deleted: boolean }>(
+      `/admin/pathologies/${pathologyId}/related-structures/${structureId}`,
+      { method: "DELETE" },
+    ),
+
+  quizzes: (params: { systemId?: string; q?: string; page?: number }) =>
+    apiRequest<Page<QuizQuestion>>(`/admin/quizzes${query(params)}`),
+
+  updateQuiz: (
+    id: string,
+    body: Partial<
+      Pick<
+        QuizQuestion,
+        "promptVi" | "promptEn" | "promptZh" | "explanation" | "source"
+      >
+    >,
+  ) =>
+    apiRequest<QuizQuestion>(`/admin/quizzes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  updateQuizOption: (id: string, body: Partial<QuizOption>) =>
+    apiRequest<QuizOption>(`/admin/quiz-options/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),

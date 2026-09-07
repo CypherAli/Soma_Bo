@@ -651,6 +651,29 @@ html[data-theme="dark"] .bo-login {
   line-height: 1.6;
 }
 
+/*
+ * Nút ĐI SÂU trong bảng (ví dụ "29 cấu trúc" ở hàng hệ cơ quan).
+ *
+ * Cố ý KHÔNG dùng `.bo-btn`: đã tự bấm nhầm khi kiểm thử — nó nằm ngay cạnh
+ * nút "Sửa", cùng hình dạng, nên tay đi theo hình chứ không đọc chữ. Cho nó
+ * dáng LIÊN KẾT thì hai việc khác nhau trông khác nhau.
+ */
+.bo-drill {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bo-accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.bo-drill:hover {
+  text-decoration-thickness: 2px;
+}
+
 /* Nút đổi nền sáng/tối trong thanh bên. Soma_Fe có nút riêng của nó; back
    office tách repo thì phải tự có, không thì bị khoá theo lựa chọn mà ứng dụng
    kia đã ghi vào localStorage. */

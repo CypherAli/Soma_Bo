@@ -92,6 +92,12 @@ export default function PathologyDrawer({
     sourcePage: string;
   } | null>(null);
 
+  /** Mã cấu trúc đang gõ ở ô neo. `null` = chưa mở ô. */
+  const [linkCode, setLinkCode] = useState<string | null>(null);
+
+  /** Mã cấu trúc đang gõ ở ô thêm cấu trúc phụ. */
+  const [relatedCode, setRelatedCode] = useState("");
+
   const [citeSource, setCiteSource] = useState("");
   const [citePage, setCitePage] = useState("");
   const [citeQuote, setCiteQuote] = useState("");
@@ -285,6 +291,70 @@ export default function PathologyDrawer({
                   được bằng dữ liệu nguồn rồi chạy <code>npm run verify:lesions</code>,
                   vì tên mesh phải khớp đúng model glTF.
                 </span>
+                <span>
+                  Cấu trúc giải phẫu:{" "}
+                  <b>
+                    {data.structure
+                      ? `${data.structure.nameVi} (${data.structure.code})`
+                      : "chưa neo"}
+                  </b>
+                  {" — "}
+                  <button
+                    type="button"
+                    className="bo-btn small"
+                    onClick={() => setLinkCode(data.structure?.code ?? "")}
+                  >
+                    Đổi
+                  </button>
+                </span>
+                {linkCode !== null && (
+                  <div className="bo-field" style={{ marginTop: 4 }}>
+                    <label htmlFor="p-link">Mã cấu trúc</label>
+                    <input
+                      id="p-link"
+                      className="bo-input"
+                      placeholder="ví dụ giai-phau-tim — để trống là bỏ neo"
+                      value={linkCode}
+                      onChange={(event) => setLinkCode(event.target.value)}
+                    />
+                    <p
+                      style={{
+                        margin: "2px 0 6px",
+                        color: "var(--bo-muted)",
+                        fontSize: 11.5,
+                      }}
+                    >
+                      Để TRỐNG là bỏ neo, và đó là lựa chọn đúng với bệnh không
+                      thuộc về một cấu trúc đơn lẻ nào — sốc, rối loạn kali máu,
+                      bệnh huyết học. Neo bừa vào một cơ quan tệ hơn để trống.
+                      Tra mã ở tab Giải phẫu.
+                    </p>
+                    <div className="bo-bar">
+                      <button
+                        type="button"
+                        className="bo-btn primary"
+                        onClick={() =>
+                          act(async () => {
+                            await adminApi.linkStructure(
+                              id,
+                              linkCode.trim() || null,
+                            );
+                            setLinkCode(null);
+                          }, "Đã cập nhật cấu trúc.")
+                        }
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        type="button"
+                        className="bo-btn"
+                        onClick={() => setLinkCode(null)}
+                      >
+                        Huỷ
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <footer>
                   <button
                     type="button"
@@ -461,6 +531,65 @@ export default function PathologyDrawer({
             >
               {saving ? "Đang lưu…" : `Lưu bản ${locale}`}
             </button>
+          </section>
+
+          <section className="bo-section">
+            <h2>Cấu trúc phụ bị ảnh hưởng ({data.relatedStructures.length})</h2>
+            <div className="bo-cite">
+              <span>
+                Dành cho bệnh tổn thương ĐA CƠ QUAN — lupus, suy tim, đái tháo
+                đường. Cấu trúc chính đặt ở phần thuộc tính bên trên; danh sách
+                này là các cơ quan còn lại.
+              </span>
+              {data.relatedStructures.length > 0 && (
+                <div className="bo-tags" style={{ flexDirection: "column", gap: 6 }}>
+                  {data.relatedStructures.map(({ structure }) => (
+                    <div
+                      key={structure.id}
+                      style={{ display: "flex", gap: 8, alignItems: "center" }}
+                    >
+                      <span style={{ fontSize: 12.5 }}>
+                        <b>{structure.nameVi}</b> <code>{structure.code}</code>
+                      </span>
+                      <button
+                        type="button"
+                        className="bo-btn small danger"
+                        onClick={() =>
+                          act(
+                            () =>
+                              adminApi.removeRelatedStructure(id, structure.id),
+                            `Đã bỏ ${structure.code}.`,
+                          )
+                        }
+                      >
+                        Bỏ
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form
+                style={{ display: "flex", gap: 8 }}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!relatedCode.trim()) return;
+                  void act(async () => {
+                    await adminApi.addRelatedStructure(id, relatedCode.trim());
+                    setRelatedCode("");
+                  }, "Đã thêm cấu trúc phụ.");
+                }}
+              >
+                <input
+                  className="bo-input"
+                  placeholder="Mã cấu trúc, tra ở tab Giải phẫu"
+                  value={relatedCode}
+                  onChange={(event) => setRelatedCode(event.target.value)}
+                />
+                <button type="submit" className="bo-btn">
+                  Thêm
+                </button>
+              </form>
+            </div>
           </section>
 
           <section className="bo-section">
