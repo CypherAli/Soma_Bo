@@ -136,3 +136,58 @@ export const IcoLog = () => (
     <path d="M8.5 9h7M8.5 12.5h7M8.5 16h4" />
   </svg>
 );
+
+export const IcoServer = () => (
+  <svg {...base}>
+    <rect x="3.5" y="4" width="17" height="6" rx="1.6" />
+    <rect x="3.5" y="14" width="17" height="6" rx="1.6" />
+    <path d="M7 7h.01M7 17h.01" />
+  </svg>
+);
+
+export const IcoCheckList = () => (
+  <svg {...base}>
+    <path d="m3.5 7 2 2 3-3.5" />
+    <path d="m3.5 17 2 2 3-3.5" />
+    <path d="M12 7h8.5M12 17h8.5" />
+  </svg>
+);
+
+export const IcoQuote = () => (
+  <svg {...base}>
+    <path d="M9 7H5.5A1.5 1.5 0 0 0 4 8.5v3A1.5 1.5 0 0 0 5.5 13H8v1.5A2.5 2.5 0 0 1 5.5 17" />
+    <path d="M19.5 7H16a1.5 1.5 0 0 0-1.5 1.5v3A1.5 1.5 0 0 0 16 13h2.5v1.5A2.5 2.5 0 0 1 16 17" />
+  </svg>
+);
+
+export const IcoTranslate = () => (
+  <svg {...base}>
+    <path d="M3.5 6h8M7.5 4v2" />
+    <path d="M10 6c0 3.5-2.6 7-6.5 8.5" />
+    <path d="M5 10.5c1.4 2.2 3.4 3.6 5.5 4.2" />
+    <path d="m13 20 3.5-9 3.5 9" />
+    <path d="M14.3 17h4.4" />
+  </svg>
+);
+
+export const IcoPulse = () => (
+  <svg {...base}>
+    <path d="M3 12h3.5l2-5 3 10 2.5-5H21" />
+  </svg>
+);
+
+export const IcoDoc = () => (
+  <svg {...base}>
+    <path d="M13.5 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5Z" />
+    <path d="M13.5 3.5v5h5" />
+    <path d="M9 13h6M9 16.5h4" />
+  </svg>
+);
+
+export const IcoKey = () => (
+  <svg {...base}>
+    <circle cx="8" cy="12" r="3.5" />
+    <path d="M11.5 12H20" />
+    <path d="M17 12v3M20 12v2.5" />
+  </svg>
+);

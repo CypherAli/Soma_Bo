@@ -124,6 +124,24 @@ export async function login(email: string, password: string) {
   return auth.user;
 }
 
+/**
+ * Tự đổi mật khẩu.
+ *
+ * Máy chủ cắt HẾT phiên cũ rồi cấp phiên mới, nên phải lưu lại token vừa nhận —
+ * không lưu thì người vừa đổi mật khẩu bị đá ra ngay bởi chính thao tác của họ.
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  const auth = await apiRequest<AuthResponse>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  setToken(auth.token);
+  return auth.user;
+}
+
 export function me() {
   return apiRequest<{ user: AuthUser }>("/auth/me");
 }
