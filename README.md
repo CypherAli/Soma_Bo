@@ -58,15 +58,47 @@ Bậc quyền, từ thấp lên cao:
 
 ## Các khu
 
+Mười lăm khu, chia năm nhóm.
+
+**Theo dõi**
+
 | Khu | Nội dung |
 | --- | --- |
-| Bảng điều khiển | Số liệu nội dung, **kèm phần còn thiếu** — độ phủ ba ngôn ngữ, số bài chưa ai duyệt, số trích dẫn chưa đối chiếu |
-| Bệnh lý | Soạn nội dung theo từng ngôn ngữ, sửa thuộc tính, neo vào cấu trúc 3D, thêm/duyệt/xoá trích dẫn. Lọc được theo "chưa có bản dịch \<ngôn ngữ\>" |
-| Giải phẫu | Ba khung nhìn theo tầng của cùng một cây: loài (7) → hệ cơ quan (55) → cấu trúc (200). Tên ba ngôn ngữ, tên Latin, mã TA, mô tả. Lọc được theo "chưa có mô tả \<ngôn ngữ\>" |
-| Trắc nghiệm | Câu hỏi **trong cơ sở dữ liệu** và phương án của chúng. Đổi đáp án đúng sẽ tự bỏ đúng ở các phương án còn lại |
+| Tổng quan | Bảy hạng mục việc tồn đọng, mỗi hạng mục liệt kê mục cụ thể bấm được để làm ngay |
+| Tình trạng hệ thống | Cơ sở dữ liệu, **chỉ số tri thức y khoa** (tệp trên đĩa — mất là trợ lý im lặng trả rỗng), tiến trình máy chủ |
+
+**Hàng đợi công việc** — ba phiên làm việc khác nhau, nên là ba khu khác nhau
+
+| Khu | Nội dung |
+| --- | --- |
+| Chờ duyệt | Chọn nhiều bài, duyệt một lượt. Chỉ tick được bài **đủ điều kiện** (có nội dung tiếng Việt và có trích dẫn), tối đa 50 một lượt |
+| Đối chiếu trích dẫn | Bảng hiện đủ để đối chiếu mà không cần mở bài: tên bệnh, tài liệu, trang, câu trích. Cảnh báo riêng khi nguồn không mở được |
+| Bàn dịch | Bản đích đặt **cạnh** bản gốc tiếng Việt trên cùng màn hình; ô bản gốc chỉ đọc |
+
+**Nội dung y khoa**
+
+| Khu | Nội dung |
+| --- | --- |
+| Bệnh lý | Nội dung ba ngôn ngữ, thuộc tính, neo cấu trúc 3D, cấu trúc phụ, trích dẫn |
+| Giải phẫu | Ba khung nhìn theo tầng: loài (7) → hệ cơ quan (55) → cấu trúc (200) |
+| Trắc nghiệm | Câu hỏi **trong cơ sở dữ liệu** và phương án |
 | Tài liệu y khoa | Danh mục nguồn và số bệnh đang dựa vào từng nguồn |
+
+**Người học** — chỉ số liệu tổng hợp, không có hồ sơ từng người
+
+| Khu | Nội dung |
+| --- | --- |
+| Hoạt động học tập | Lượt nộp, tỉ lệ đúng theo nguồn và phạm vi, hàng đợi ôn. Cảnh báo khi quá nửa hàng ôn là câu từng sai — nội dung khó thật, hoặc có đề sai đáp án |
+| Tài liệu cá nhân | **Chỉ phần kê khai** và trạng thái bóc PDF. Không có nội dung tài liệu, không có nội dung câu hỏi |
+
+**Hệ thống**
+
+| Khu | Nội dung |
+| --- | --- |
 | Tài khoản | Phân quyền, khoá tài khoản (khoá là cắt mọi phiên đang mở ngay) |
+| Phiên đăng nhập | Phiên còn hiệu lực, thu hồi được từng phiên |
 | Nhật ký | Ai đổi gì, lúc nào, **và giá trị trước khi đổi** |
+| Hồ sơ của tôi | Quyền đang có và **đổi mật khẩu** — đổi xong cắt hết phiên khác |
 
 ### Những gì back office CỐ Ý không quản lý
 

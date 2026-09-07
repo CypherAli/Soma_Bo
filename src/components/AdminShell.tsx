@@ -19,30 +19,53 @@ import QuizPanel from "./QuizPanel";
 import UsersPanel from "./UsersPanel";
 import SourcesPanel from "./SourcesPanel";
 import AuditPanel from "./AuditPanel";
+import SystemPanel from "./SystemPanel";
+import ReviewQueuePanel from "./ReviewQueuePanel";
+import CitationPanel from "./CitationPanel";
+import TranslationPanel from "./TranslationPanel";
+import LearningPanel from "./LearningPanel";
+import PersonalDocsPanel from "./PersonalDocsPanel";
+import SessionsPanel from "./SessionsPanel";
+import ProfilePanel from "./ProfilePanel";
 import {
   IcoBell,
   IcoBone,
   IcoBook,
+  IcoCheckList,
   IcoChevron,
+  IcoDoc,
   IcoExternal,
   IcoGauge,
+  IcoKey,
   IcoLog,
   IcoMenu,
+  IcoPulse,
   IcoQuiz,
+  IcoQuote,
   IcoSearch,
+  IcoServer,
   IcoStethoscope,
   IcoSun,
+  IcoTranslate,
   IcoUsers,
 } from "./Icons";
 
 export type TabKey =
   | "overview"
+  | "system"
+  | "review"
+  | "citations"
+  | "translations"
   | "pathologies"
   | "anatomy"
   | "quizzes"
   | "sources"
+  | "learning"
+  | "personalDocs"
   | "users"
-  | "audit";
+  | "sessions"
+  | "audit"
+  | "profile";
 
 /**
  * Yêu cầu "đi tới đúng chỗ này" truyền từ thanh tìm kiếm hoặc từ thẻ trên bảng
@@ -80,6 +103,43 @@ const GROUPS: Group[] = [
         title: "Tổng quan",
         hint: "Việc còn tồn đọng, từng mục bấm được để làm ngay",
         icon: IcoGauge,
+        min: "editor",
+      },
+      {
+        key: "system",
+        label: "Tình trạng hệ thống",
+        title: "Tình trạng hệ thống",
+        hint: "Cơ sở dữ liệu, chỉ số tri thức y khoa, tiến trình máy chủ",
+        icon: IcoServer,
+        min: "editor",
+      },
+    ],
+  },
+  {
+    label: "Hàng đợi công việc",
+    tabs: [
+      {
+        key: "review",
+        label: "Chờ duyệt",
+        title: "Hàng chờ duyệt chuyên môn",
+        hint: "Chọn nhiều bài và duyệt một lượt — chỉ bài đã đủ điều kiện",
+        icon: IcoCheckList,
+        min: "editor",
+      },
+      {
+        key: "citations",
+        label: "Đối chiếu trích dẫn",
+        title: "Đối chiếu trích dẫn",
+        hint: "Mở sách ra và tick từng dòng; xem được trang và câu trích ngay tại bảng",
+        icon: IcoQuote,
+        min: "editor",
+      },
+      {
+        key: "translations",
+        label: "Bàn dịch",
+        title: "Bàn dịch",
+        hint: "Bản đích đặt cạnh bản gốc tiếng Việt trên cùng màn hình",
+        icon: IcoTranslate,
         min: "editor",
       },
     ],
@@ -122,6 +182,27 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    label: "Người học",
+    tabs: [
+      {
+        key: "learning",
+        label: "Hoạt động học tập",
+        title: "Hoạt động học tập",
+        hint: "Số liệu tổng hợp — không có hồ sơ của từng người",
+        icon: IcoPulse,
+        min: "admin",
+      },
+      {
+        key: "personalDocs",
+        label: "Tài liệu cá nhân",
+        title: "Tài liệu cá nhân",
+        hint: "Chỉ phần kê khai và trạng thái bóc; không có nội dung tài liệu",
+        icon: IcoDoc,
+        min: "admin",
+      },
+    ],
+  },
+  {
     label: "Hệ thống",
     tabs: [
       {
@@ -133,12 +214,28 @@ const GROUPS: Group[] = [
         min: "admin",
       },
       {
+        key: "sessions",
+        label: "Phiên đăng nhập",
+        title: "Phiên đăng nhập",
+        hint: "Phiên còn hiệu lực; thu hồi được từng phiên",
+        icon: IcoKey,
+        min: "admin",
+      },
+      {
         key: "audit",
         label: "Nhật ký",
         title: "Nhật ký thao tác",
         hint: "Ai đã đổi gì, đổi lúc nào, giá trị trước khi đổi",
         icon: IcoLog,
         min: "admin",
+      },
+      {
+        key: "profile",
+        label: "Hồ sơ của tôi",
+        title: "Hồ sơ của tôi",
+        hint: "Quyền đang có và đổi mật khẩu",
+        icon: IcoUsers,
+        min: "editor",
       },
     ],
   },
@@ -365,6 +462,9 @@ export default function AdminShell() {
     if (key === "sources") {
       return a.sourcesAtRisk.total || null;
     }
+    if (key === "review") return a.needsReview.total || null;
+    if (key === "citations") return a.unverifiedCitations.total || null;
+    if (key === "translations") return a.machineTranslated.total || null;
     if (key === "users") {
       return overview.people.disabledUsers || null;
     }
@@ -603,6 +703,28 @@ export default function AdminShell() {
           {current.key === "anatomy" && (
             <AnatomyPanel jump={jump} onJumpDone={() => setJump(null)} />
           )}
+          {current.key === "system" && <SystemPanel />}
+          {current.key === "review" && (
+            <ReviewQueuePanel
+              canApprove={hasAtLeast(user.role, "admin")}
+              onChanged={refreshOverview}
+              onJump={go}
+            />
+          )}
+          {current.key === "citations" && (
+            <CitationPanel
+              canVerify={hasAtLeast(user.role, "admin")}
+              onChanged={refreshOverview}
+              onJump={go}
+            />
+          )}
+          {current.key === "translations" && (
+            <TranslationPanel onChanged={refreshOverview} />
+          )}
+          {current.key === "learning" && <LearningPanel />}
+          {current.key === "personalDocs" && <PersonalDocsPanel />}
+          {current.key === "sessions" && <SessionsPanel me={user} />}
+          {current.key === "profile" && <ProfilePanel me={user} />}
           {current.key === "quizzes" && <QuizPanel />}
           {current.key === "sources" && <SourcesPanel />}
           {current.key === "users" && (

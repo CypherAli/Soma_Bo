@@ -216,6 +216,119 @@ export type QuizQuestion = {
   options: QuizOption[];
 };
 
+
+// ------------------------------------------------- vận hành và hàng đợi
+
+export type SystemStatus = {
+  database: { status: "up" | "down"; latencyMs: number };
+  medicalKb: {
+    path: string;
+    exists: boolean;
+    bytes: number;
+    updatedAt: string | null;
+  };
+  llm: { managedBy: string; note: string };
+  runtime: { node: string; uptimeSeconds: number; startedAt: string };
+  totals: {
+    pathologies: number;
+    structures: number;
+    users: number;
+    sessions: number;
+    auditRows: number;
+  };
+  lastAuditAt: string | null;
+};
+
+export type Learning = {
+  attempts: number;
+  attempts30d: number;
+  learners: number;
+  paths: number;
+  review: { total: number; dueNow: number; lapsed: number };
+  bySource: { source: string; attempts: number; accuracy: number | null }[];
+  byScope: { scope: string; attempts: number; accuracy: number | null }[];
+  recent: {
+    id: string;
+    source: string;
+    scope: string;
+    mode: string;
+    score: number;
+    total: number;
+    seconds: number;
+    createdAt: string;
+  }[];
+};
+
+export type PersonalDocRow = {
+  id: string;
+  filename: string;
+  bytes: number;
+  pages: number;
+  status: string;
+  note: string | null;
+  createdAt: string;
+  owner: string;
+  questions: number;
+  approved: number;
+};
+
+export type SessionRow = {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  user: { id: string; name: string; email: string; role: Role };
+};
+
+export type ReviewRow = {
+  id: string;
+  slug: string;
+  nameVi: string;
+  clinicalSystem: string | null;
+  severity: "info" | "warning" | "critical" | null;
+  icdCode: string | null;
+  source: string;
+  sourcePage: number | null;
+  citations: number;
+  locales: string[];
+  machineLocales: string[];
+  /** Có nội dung tiếng Việt VÀ có trích dẫn — điều kiện để được duyệt. */
+  ready: boolean;
+};
+
+export type CitationRow = {
+  id: string;
+  pageOrSection: string | null;
+  quote: string | null;
+  verified: boolean;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  pathology: { id: string; slug: string; nameVi: string };
+  source: { id: string; title: string; status: string };
+};
+
+export type TranslationContent = {
+  locale: string;
+  machineTranslated: boolean;
+  description: string | null;
+  clinical: string | null;
+  imaging: string | null;
+  progression: string | null;
+  treatment: string | null;
+};
+
+export type TranslationRow = {
+  id: string;
+  slug: string;
+  nameVi: string;
+  nameEn: string;
+  nameZh: string;
+  clinicalSystem: string | null;
+  /** Bản GỐC tiếng Việt, để đọc khi dịch. */
+  source: TranslationContent | null;
+  target: TranslationContent | null;
+  state: "missing" | "machine" | "reviewed";
+};
+
 export type Page<T> = {
   items: T[];
   total: number;
@@ -430,6 +543,61 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+
+  // ------------------------------------------- vận hành và hàng đợi
+  //
+  // `value: true` ở CẢ hai endpoint hàng loạt đều nghĩa là "việc này đã xong".
+  // Backend tự đổi chiều sang cột `needsReview`; xem chú thích ở
+  // `QueuesService.bulkReview`.
+
+  system: () => apiRequest<SystemStatus>("/admin/system"),
+
+  learning: () => apiRequest<Learning>("/admin/learning"),
+
+  personalDocs: (params: { status?: string; page?: number }) =>
+    apiRequest<Page<PersonalDocRow> & { byStatus: { status: string; count: number }[] }>(
+      `/admin/personal-docs${query(params)}`,
+    ),
+
+  sessions: (params: { page?: number }) =>
+    apiRequest<Page<SessionRow>>(`/admin/sessions${query(params)}`),
+
+  revokeSession: (id: string) =>
+    apiRequest<{ revoked: boolean; self: boolean }>(`/admin/sessions/${id}`, {
+      method: "DELETE",
+    }),
+
+  reviewQueue: (params: { clinicalSystem?: string; q?: string; page?: number }) =>
+    apiRequest<Page<ReviewRow>>(`/admin/review-queue${query(params)}`),
+
+  bulkReview: (ids: string[], value: boolean) =>
+    apiRequest<{ updated: number; skipped: number }>("/admin/review-queue/bulk", {
+      method: "POST",
+      body: JSON.stringify({ ids, value }),
+    }),
+
+  citationQueue: (params: {
+    verified?: boolean;
+    sourceId?: string;
+    q?: string;
+    page?: number;
+  }) => apiRequest<Page<CitationRow>>(`/admin/citations${query(params)}`),
+
+  bulkVerifyCitations: (ids: string[], value: boolean) =>
+    apiRequest<{ updated: number; skipped: number }>("/admin/citations/bulk", {
+      method: "POST",
+      body: JSON.stringify({ ids, value }),
+    }),
+
+  translations: (params: {
+    locale: string;
+    state?: string;
+    q?: string;
+    page?: number;
+  }) =>
+    apiRequest<Page<TranslationRow> & { locale: string }>(
+      `/admin/translations${query(params)}`,
+    ),
 
   audit: (params: { entity?: string; actorEmail?: string; page?: number }) =>
     apiRequest<Page<AuditEntry>>(`/admin/audit${query(params)}`),
