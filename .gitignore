@@ -1,0 +1,16 @@
+/node_modules
+/.next/
+/out/
+/build
+.DS_Store
+*.pem
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# Biến môi trường: chỉ chứa NEXT_PUBLIC_API_URL, nhưng vẫn không commit
+.env*
+!.env.example
+
+# Bản sao lưu do công cụ sinh ra khi sửa file
+*.backup-*
