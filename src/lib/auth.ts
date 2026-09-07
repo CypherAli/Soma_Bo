@@ -69,14 +69,32 @@ export async function apiRequest<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
-    },
-  });
+
+  /*
+   * Bọc riêng lỗi MẠNG.
+   *
+   * `fetch` ném `TypeError: Failed to fetch` khi không nối được tới máy chủ, và
+   * để nguyên thì người dùng nhận đúng bốn chữ "Failed to fetch" trên khung
+   * đăng nhập — không nói máy chủ nào, không nói phải làm gì. Nguyên nhân gần
+   * như luôn là `soma_be` chưa chạy: back office không có cơ sở dữ liệu riêng,
+   * nó không làm gì được một mình. Nói thẳng ra kèm địa chỉ đang gọi.
+   */
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init.headers,
+      },
+    });
+  } catch {
+    throw new Error(
+      `Không kết nối được máy chủ API tại ${API_URL} — kiểm tra soma_be đã chạy chưa (cd soma_be && npm start).`,
+    );
+  }
+
   const data: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
     // Backend trả `message` là chuỗi, hoặc là MẢNG chuỗi khi ValidationPipe bắt
