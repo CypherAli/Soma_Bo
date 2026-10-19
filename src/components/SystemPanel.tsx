@@ -146,7 +146,7 @@ export default function SystemPanel() {
           <p className="bo-msg err" style={{ marginTop: 10 }}>
             Không thấy tệp chỉ số. Trợ lý bám giáo trình sẽ trả về rỗng mà không
             báo lỗi. Dựng lại bằng{" "}
-            <code>python medical_kb/scripts/build_text_index.py</code>, hoặc đặt
+            <code>python resources/medical_kb/scripts/build_text_index.py</code> ở backend, hoặc đặt
             biến <code>MEDICAL_KB_INDEX</code> trỏ đúng chỗ.
           </p>
         )}

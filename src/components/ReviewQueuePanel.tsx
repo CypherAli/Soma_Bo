@@ -11,7 +11,7 @@ import type { Jump } from "./AdminShell";
  * chục bài liền để đọc rồi tick, chứ không đi sửa từng trường. Ở khu Bệnh lý thì
  * mỗi lần lại phải lọc `needsReview` từ đầu.
  *
- * Chỉ tick được bài ĐỦ ĐIỀU KIỆN — có nội dung tiếng Việt và có trích dẫn.
+ * Chỉ tick được bài ĐỦ ĐIỀU KIỆN — có nội dung tiếng Việt đã soạn và có trích dẫn đã đối chiếu từ nguồn đang sử dụng.
  * Duyệt một bài chưa có gì để đọc là ký vào chỗ trống.
  */
 export default function ReviewQueuePanel({
@@ -98,7 +98,7 @@ export default function ReviewQueuePanel({
     setError("");
     setNote("");
     try {
-      const result = await adminApi.bulkReview(picked, value);
+      const result = await adminApi.bulkReview(picked, value, Object.fromEntries(rows.filter(row=>picked.includes(row.id)).map(row=>[row.id,row.reviewRevision])));
       setNote(
         `${result.updated} bài ${value ? "đã đánh dấu duyệt" : "đã trả về hàng chờ"}` +
           (result.skipped ? ` · ${result.skipped} bài vốn đã ở trạng thái đó` : ""),
@@ -215,7 +215,7 @@ export default function ReviewQueuePanel({
                       title={
                         row.ready
                           ? "Chọn để duyệt"
-                          : "Chưa đủ điều kiện: thiếu nội dung tiếng Việt hoặc thiếu trích dẫn"
+                          : "Cần đại cương tiếng Việt đã soạn và trích dẫn đã đối chiếu từ nguồn đang sử dụng"
                       }
                       onChange={(event) =>
                         setPicked((list) =>

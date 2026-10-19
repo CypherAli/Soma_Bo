@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmLeaveEditors } from "@/lib/dirty-guard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
@@ -11,6 +12,7 @@ import {
   type AuthUser,
 } from "@/lib/auth";
 import { adminApi, type Overview } from "@/lib/admin";
+import { contentApi, contentKindLabels } from "@/lib/content";
 import LoginPanel from "./LoginPanel";
 import OverviewPanel from "./OverviewPanel";
 import PathologyPanel from "./PathologyPanel";
@@ -27,6 +29,7 @@ import LearningPanel from "./LearningPanel";
 import PersonalDocsPanel from "./PersonalDocsPanel";
 import SessionsPanel from "./SessionsPanel";
 import ProfilePanel from "./ProfilePanel";
+import ContentPanel from './ContentPanel';
 import {
   IcoBell,
   IcoBone,
@@ -51,6 +54,7 @@ import {
 } from "./Icons";
 
 export type TabKey =
+  | "content"
   | "overview"
   | "system"
   | "review"
@@ -78,6 +82,8 @@ export type TabKey =
 export type Jump =
   | { tab: "pathologies"; pathologyId: string }
   | { tab: "anatomy"; structureQuery: string }
+  | { tab: "content"; category: string }
+  | { tab: "content"; contentId: string; contentTitle: string }
   | { tab: TabKey };
 
 type Group = {
@@ -94,6 +100,23 @@ type Group = {
 };
 
 const GROUPS: Group[] = [
+  {
+    label: 'Website & mô hình',
+    tabs: [{ key: 'content', label: 'Mô hình 3D & nội dung', title: 'Mô hình 3D & nội dung website', hint: 'Chọn mô hình để sửa thông tin, thay tệp GLB và cấu hình cảnh · Lưu bản nháp → Xem trước → Xuất bản', icon: IcoBone, min: 'editor' }],
+  },
+  {
+    label: "Quản lý người dùng",
+    tabs: [
+      {
+        key: "users",
+        label: "Người dùng",
+        title: "Quản lý người dùng",
+        hint: "Danh sách tài khoản, hoạt động học tập, phân quyền và khoá tài khoản",
+        icon: IcoUsers,
+        min: "admin",
+      },
+    ],
+  },
   {
     label: "Theo dõi",
     tabs: [
@@ -167,7 +190,7 @@ const GROUPS: Group[] = [
         key: "quizzes",
         label: "Trắc nghiệm",
         title: "Câu hỏi trắc nghiệm",
-        hint: "Chỉ các câu trong cơ sở dữ liệu — bộ đề chính nằm trong mã Soma_Fe",
+        hint: "Ngân hàng câu hỏi website và câu hỏi theo hệ cơ quan",
         icon: IcoQuiz,
         min: "editor",
       },
@@ -175,7 +198,7 @@ const GROUPS: Group[] = [
         key: "sources",
         label: "Tài liệu y khoa",
         title: "Tài liệu y khoa",
-        hint: "Danh mục nguồn mà nội dung bệnh lý đang dựa vào",
+        hint: "Nguồn tham khảo · Xem tài liệu gốc và quản lý thông tin nguồn",
         icon: IcoBook,
         min: "editor",
       },
@@ -206,14 +229,6 @@ const GROUPS: Group[] = [
     label: "Hệ thống",
     tabs: [
       {
-        key: "users",
-        label: "Tài khoản",
-        title: "Tài khoản",
-        hint: "Phân quyền và khoá tài khoản",
-        icon: IcoUsers,
-        min: "admin",
-      },
-      {
         key: "sessions",
         label: "Phiên đăng nhập",
         title: "Phiên đăng nhập",
@@ -242,7 +257,7 @@ const GROUPS: Group[] = [
 ];
 
 type SearchHit = {
-  kind: "pathology" | "structure";
+  kind: "pathology" | "structure" | "content";
   id: string;
   title: string;
   subtitle: string;
@@ -268,35 +283,53 @@ export default function AdminShell() {
   const [closed, setClosed] = useState<string[]>([]);
   const [jump, setJump] = useState<Jump | null>(null);
 
+  useEffect(() => {
+    let small = window.innerWidth <= 900;
+    const resize = () => {
+      const next = window.innerWidth <= 900;
+      if (next !== small) { small = next; setNarrow(next); }
+    };
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const searchRevision = useRef(0);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let revision = 0;
     const load = async () => {
+      const current = ++revision;
       // Nhường một nhịp trước khi chạm vào state, đúng quy ước đã dùng ở
       // `HomeNav` bên Soma_Fe: gọi setState ĐỒNG BỘ trong thân effect thì React
       // Compiler báo lỗi "cascading renders", và cảnh báo đó đúng.
       await Promise.resolve();
-      if (!getToken()) {
+      const token = getToken();
+      if (!token) {
         setUser(null);
         setChecking(false);
         return;
       }
       try {
         const result = await me();
-        setUser(result.user);
+        if (current === revision && getToken() === token) setUser(result.user);
       } catch {
-        setUser(null);
+        if (current === revision) setUser(null);
       } finally {
-        setChecking(false);
+        if (current === revision) setChecking(false);
       }
     };
     void load();
     window.addEventListener(AUTH_CHANGED_EVENT, load);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, load);
+    return () => {
+      revision += 1;
+      window.removeEventListener(AUTH_CHANGED_EVENT, load);
+    };
   }, []);
 
   const refreshOverview = useCallback(async () => {
@@ -330,7 +363,7 @@ export default function AdminShell() {
         inputRef.current?.focus();
         inputRef.current?.select();
       }
-      if (event.key === "Escape") setHits(null);
+      if (event.key === "Escape") { searchRevision.current += 1; setHits(null); setSearching(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -340,55 +373,101 @@ export default function AdminShell() {
   useEffect(() => {
     if (hits === null) return;
     const onDown = (event: MouseEvent) => {
-      if (!searchRef.current?.contains(event.target as Node)) setHits(null);
+      if (!searchRef.current?.contains(event.target as Node)) { searchRevision.current += 1; setHits(null); setSearching(false); }
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [hits]);
 
-  /**
-   * Tìm nhanh trên CẢ bệnh lý và cấu trúc.
-   *
-   * Chỉ chạy khi bấm Enter, không gõ-là-tìm: mỗi lượt là hai lời gọi API, mà
-   * người soạn gõ tên bệnh dài mười mấy ký tự.
-   */
+  /** Each source can fail independently; an older query must never replace the current one. */
   const runSearch = async () => {
+    const revision = ++searchRevision.current;
     const q = query.trim();
     if (q.length < 2) {
       setHits([]);
       return;
     }
     setSearching(true);
+    setSearchError("");
+    setHits([]);
     try {
-      const [pathologies, structures] = await Promise.all([
+      const results = await Promise.allSettled([
         adminApi.pathologies({ q }),
         adminApi.structures({ q }),
+        contentApi.list('', q, 1),
       ]);
+      if (revision !== searchRevision.current) return;
+      const [pathologies, structures, content] = results;
+      if (results.some((result) => result.status === 'rejected')) setSearchError('Một số nguồn tìm kiếm chưa tải được. Bấm Enter để thử lại.');
       setHits([
-        ...pathologies.items.slice(0, 6).map<SearchHit>((p) => ({
+        ...(content.status === 'fulfilled' ? content.value.items.slice(0, 6).map<SearchHit>((row) => ({
+          kind: 'content', id: row.id, title: row.title,
+          subtitle: [contentKindLabels[row.kind ?? ''], row.identifier].filter(Boolean).join(' · '),
+        })) : []),
+        ...(pathologies.status === 'fulfilled' ? pathologies.value.items.slice(0, 6).map<SearchHit>((p) => ({
           kind: "pathology",
           id: p.id,
           title: p.nameVi,
           subtitle: [p.slug, p.clinicalSystem].filter(Boolean).join(" · "),
-        })),
-        ...structures.items.slice(0, 6).map<SearchHit>((st) => ({
+        })) : []),
+        ...(structures.status === 'fulfilled' ? structures.value.items.slice(0, 6).map<SearchHit>((st) => ({
           kind: "structure",
           id: st.code,
           title: st.nameVi,
           subtitle: `${st.code} · ${st.system.nameVi}`,
-        })),
+        })) : []),
       ]);
     } catch {
-      setHits([]);
+      if (revision === searchRevision.current) setSearchError('Không tải được kết quả. Bấm Enter để thử lại.');
     } finally {
-      setSearching(false);
+      if (revision === searchRevision.current) setSearching(false);
     }
   };
 
+  const initializedLocation = useRef(false);
+  useEffect(() => {
+    if (!user || initializedLocation.current) return;
+    initializedLocation.current=true;
+    const read = () => {
+      const params=new URLSearchParams(window.location.search), key=params.get('tab') as TabKey;
+      const allowed=GROUPS.flatMap(g=>g.tabs).find(t=>t.key===key && hasAtLeast(user.role,t.min));
+      if (!allowed) return;
+      setTab(key);
+      if(key==='content' && params.get('contentId')) setJump({tab:'content',contentId:params.get('contentId')!,contentTitle:''});
+      else if(key==='content' && params.get('category')) setJump({tab:'content',category:params.get('category')!});
+      else if(key==='pathologies' && params.get('pathologyId')) setJump({tab:'pathologies',pathologyId:params.get('pathologyId')!});
+      else if(key==='anatomy' && params.get('q')) setJump({tab:'anatomy',structureQuery:params.get('q')!});
+    };
+    queueMicrotask(read);
+  },[user]);
+  useEffect(()=>{
+    const back=()=>{
+      if(!user)return;
+      if(!confirmLeaveEditors()){window.history.forward();return;}
+      const params=new URLSearchParams(window.location.search), key=(params.get('tab')??'overview') as TabKey;
+      if(!GROUPS.flatMap(g=>g.tabs).some(t=>t.key===key && hasAtLeast(user.role,t.min)))return;
+      setTab(key);
+      if(key==='content' && params.get('contentId'))setJump({tab:'content',contentId:params.get('contentId')!,contentTitle:''});
+      else if(key==='pathologies' && params.get('pathologyId'))setJump({tab:'pathologies',pathologyId:params.get('pathologyId')!});
+      else if(key==='content' && params.get('category'))setJump({tab:'content',category:params.get('category')!});
+      else setJump({tab:key});
+    };
+    window.addEventListener('popstate',back);return()=>window.removeEventListener('popstate',back);
+  },[user]);
   const go = (target: Jump) => {
+    if(!(target.tab==='content' && tab==='content') && !confirmLeaveEditors()) return;
+    const params=new URLSearchParams({tab:target.tab});
+    if('contentId' in target) params.set('contentId',target.contentId);
+    if('category' in target) params.set('category',target.category);
+    if('pathologyId' in target) params.set('pathologyId',target.pathologyId);
+    if('structureQuery' in target) params.set('q',target.structureQuery);
+    window.history.pushState(null,'','?'+params.toString());
+    searchRevision.current += 1;
     setTab(target.tab);
     setJump(target);
     setHits(null);
+    setSearching(false);
+    if (window.innerWidth <= 900) setNarrow(true);
   };
 
   const toggleTheme = () => {
@@ -510,23 +589,27 @@ export default function AdminShell() {
           <input
             ref={inputRef}
             value={query}
-            placeholder="Tìm bệnh lý hoặc cấu trúc giải phẫu…"
-            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Tìm mô hình, bệnh lý, cấu trúc…"
+            aria-label="Tìm mô hình, bệnh lý hoặc cấu trúc; bấm Enter để tìm"
+            onChange={(event) => { searchRevision.current += 1; setQuery(event.target.value); setHits(null); setSearchError(''); setSearching(false); }}
             onKeyDown={(event) => {
               if (event.key === "Enter") void runSearch();
             }}
           />
           <kbd>Ctrl K</kbd>
+          <button className="bo-btn small" type="button" onClick={() => void runSearch()} disabled={searching}>Tìm</button>
           {hits !== null && (
             <div className="bo-results">
               {searching && <p>Đang tìm…</p>}
+              {searchError && <p role="alert">{searchError}</p>}
               {!searching && hits.length === 0 && (
                 <p>
                   {query.trim().length < 2
                     ? "Gõ ít nhất hai ký tự rồi bấm Enter."
-                    : "Không có kết quả nào."}
+                    : searchError ? "Chưa có kết quả từ các nguồn đã tải." : "Không có kết quả nào."}
                 </p>
               )}
+              {!searching && hits.some((h) => h.kind === 'content') && <><b>Mô hình & nội dung website</b>{hits.filter((h) => h.kind === 'content').map((hit) => <button key={hit.id} type="button" onClick={() => go({ tab: 'content', contentId: hit.id, contentTitle: hit.title })}><strong>{hit.title}</strong><em>{hit.subtitle}</em></button>)}</>}
               {!searching &&
                 hits.some((h) => h.kind === "pathology") && (
                   <>
@@ -685,6 +768,7 @@ export default function AdminShell() {
           </div>
         </div>
         <div className="bo-body">
+          {current.key === 'content' && <ContentPanel role={user.role} jump={jump} onJumpDone={() => setJump(null)} />}
           {current.key === "overview" && (
             <OverviewPanel
               data={overview}
@@ -725,7 +809,7 @@ export default function AdminShell() {
           {current.key === "personalDocs" && <PersonalDocsPanel />}
           {current.key === "sessions" && <SessionsPanel me={user} />}
           {current.key === "profile" && <ProfilePanel me={user} />}
-          {current.key === "quizzes" && <QuizPanel />}
+          {current.key === "quizzes" && <QuizPanel onWebsite={() => go({tab:"content",category:"quizzes"})} />}
           {current.key === "sources" && <SourcesPanel />}
           {current.key === "users" && (
             <UsersPanel me={user} onChanged={refreshOverview} />

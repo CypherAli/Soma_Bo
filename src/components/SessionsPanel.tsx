@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type SessionRow } from "@/lib/admin";
-import { clearAuth, type AuthUser } from "@/lib/auth";
+import { hasAtLeast, clearAuth, type AuthUser } from "@/lib/auth";
 
 function remaining(expiresAt: string) {
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -142,6 +142,8 @@ export default function SessionsPanel({ me }: { me: AuthUser }) {
                   <button
                     type="button"
                     className="bo-btn small danger"
+                    disabled={row.user.id!==me.id && hasAtLeast(row.user.role,me.role)}
+                    title={row.user.id!==me.id && hasAtLeast(row.user.role,me.role) ? "Không thể thu hồi phiên của tài khoản ngang hoặc cao hơn bạn" : ""}
                     onClick={() => void revoke(row)}
                   >
                     Thu hồi

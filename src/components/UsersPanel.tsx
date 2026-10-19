@@ -34,6 +34,7 @@ export default function UsersPanel({
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   /*
    * `isCurrent` chặn lượt tải CŨ về muộn ghi đè lượt mới.
@@ -50,6 +51,7 @@ export default function UsersPanel({
     // lỗi "cascading renders", và cảnh báo đó đúng — lần dựng đầu sẽ render hai
     // lượt liền.
     await Promise.resolve();
+    if (isCurrent()) setLoading(true);
     try {
       const result = await adminApi.users({ q: search, page });
       if (!isCurrent()) return;
@@ -82,6 +84,8 @@ export default function UsersPanel({
   }, [load]);
 
   const act = async (run: () => Promise<unknown>, ok: string) => {
+    if (busy) return;
+    setBusy(true);
     setError("");
     setNote("");
     try {
@@ -91,7 +95,7 @@ export default function UsersPanel({
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Thao tác không thành công");
-    }
+    } finally { setBusy(false); }
   };
 
   const canManage = (user: AdminUser) =>
@@ -103,19 +107,22 @@ export default function UsersPanel({
     <>
       <div className="bo-bar">
         <form
-          className="grow"
+          className="grow bo-user-search"
           onSubmit={(event) => {
             event.preventDefault();
-            setSearch(q.trim());
-            setPage(1);
+            if (search === q.trim() && page === 1) void load();
+            else { setSearch(q.trim()); setPage(1); }
           }}
         >
           <input
             className="bo-input"
+            type="search"
+            aria-label="Tìm người dùng theo tên hoặc email"
             placeholder="Tìm theo tên hoặc email…"
             value={q}
             onChange={(event) => setQ(event.target.value)}
           />
+          <button className="bo-btn" type="submit" disabled={loading || busy}>Tìm người dùng</button>
         </form>
       </div>
 
@@ -166,6 +173,7 @@ export default function UsersPanel({
                   {me.role === "super_admin" && canManage(user) ? (
                     <select
                       className="bo-select"
+                      disabled={busy || loading}
                       value={user.role}
                       onChange={(event) =>
                         act(
@@ -175,7 +183,7 @@ export default function UsersPanel({
                         )
                       }
                     >
-                      {ROLES.map((role) => (
+                      {ROLES.filter((role) => !hasAtLeast(role, me.role)).map((role) => (
                         <option key={role} value={role}>
                           {ROLE_LABEL[role]}
                         </option>
@@ -204,6 +212,7 @@ export default function UsersPanel({
                     <em>
                       <button
                         type="button"
+                        disabled={busy || loading}
                         className={`bo-btn small ${user.disabledAt ? "" : "danger"}`}
                         style={{ marginTop: 6 }}
                         onClick={() => {
@@ -243,7 +252,7 @@ export default function UsersPanel({
         <button
           type="button"
           className="bo-btn small"
-          disabled={page <= 1}
+          disabled={page <= 1 || loading || busy}
           onClick={() => setPage((p) => p - 1)}
         >
           Trước
@@ -254,7 +263,7 @@ export default function UsersPanel({
         <button
           type="button"
           className="bo-btn small"
-          disabled={page >= lastPage}
+          disabled={page >= lastPage || loading || busy}
           onClick={() => setPage((p) => p + 1)}
         >
           Sau

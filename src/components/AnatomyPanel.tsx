@@ -1,5 +1,6 @@
 "use client";
 
+import { useDirtyGuard } from "@/lib/dirty-guard";
 import { useCallback, useEffect, useState } from "react";
 import {
   adminApi,
@@ -51,6 +52,11 @@ export default function AnatomyPanel({
 
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [baseline,setBaseline] = useState('');
+  const [expectedRevision,setExpectedRevision] = useState('');
+  const [mutating,setMutating] = useState(false);
+  const mayDiscard = useDirtyGuard(editing!==null && JSON.stringify(draft)!==baseline,mutating);
+  const beginDraft = (value:typeof draft) => {setDraft(value);setBaseline(JSON.stringify(value));};
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
 
@@ -143,11 +149,12 @@ export default function AnatomyPanel({
   }, [jump, onJumpDone]);
 
   const changeFilter = (apply: () => void) => {
-    apply();
+    if(!mayDiscard()) return; setEditing(null); apply();
     setPage(1);
   };
 
   const act = async (run: () => Promise<unknown>, ok: string) => {
+    if(mutating) return; setMutating(true);
     setError("");
     setNote("");
     try {
@@ -158,7 +165,7 @@ export default function AnatomyPanel({
       await Promise.all([load(), loadRefs()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không lưu được");
-    }
+    } finally {setMutating(false);}
   };
 
   /** Ô nhập của khung sửa tại chỗ. */
@@ -190,7 +197,7 @@ export default function AnatomyPanel({
     : systems;
 
   return (
-    <>
+    <fieldset disabled={mutating} style={{border:0,padding:0,margin:0,minWidth:0}}>
       <div className="bo-locale-tabs">
         {(
           [
@@ -203,7 +210,7 @@ export default function AnatomyPanel({
             key={key}
             type="button"
             className={view === key ? "is-on" : ""}
-            onClick={() => setView(key)}
+            onClick={() => {if(mayDiscard()){setEditing(null);setView(key);}}}
           >
             {label}
           </button>
@@ -333,12 +340,12 @@ export default function AnatomyPanel({
                             onClick={() =>
                               act(
                                 () =>
-                                  adminApi.updateStructure(row.id, {
+                                  adminApi.updateStructure(row.id, {expectedRevision,
                                     nameVi: draft.nameVi,
                                     nameEn: draft.nameEn,
                                     nameZh: draft.nameZh,
-                                    latin: draft.latin || undefined,
-                                    taCode: draft.taCode || undefined,
+                                    latin: draft.latin || null,
+                                    taCode: draft.taCode || null,
                                     descriptionVi: draft.descriptionVi,
                                     descriptionEn: draft.descriptionEn,
                                     descriptionZh: draft.descriptionZh,
@@ -353,7 +360,7 @@ export default function AnatomyPanel({
                             type="button"
                             className="bo-btn"
                             onClick={() => {
-                              setEditing(null);
+                              if(!mayDiscard()) return; setEditing(null);
                               setDraft({});
                             }}
                           >
@@ -408,8 +415,8 @@ export default function AnatomyPanel({
                           type="button"
                           className="bo-btn small"
                           onClick={() => {
-                            setEditing(row.id);
-                            setDraft({
+                            if(!mayDiscard()) return; setEditing(row.id); setExpectedRevision(row.revision);
+                            beginDraft({
                               nameVi: row.nameVi,
                               nameEn: row.nameEn,
                               nameZh: row.nameZh,
@@ -440,7 +447,7 @@ export default function AnatomyPanel({
               type="button"
               className="bo-btn small"
               disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => {if(mayDiscard()) {setEditing(null);setPage((p)=>p-1);}}}
             >
               Trước
             </button>
@@ -451,7 +458,7 @@ export default function AnatomyPanel({
               type="button"
               className="bo-btn small"
               disabled={page >= lastPage}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => {if(mayDiscard()) {setEditing(null);setPage((p)=>p+1);}}}
             >
               Sau
             </button>
@@ -498,11 +505,11 @@ export default function AnatomyPanel({
                           onClick={() =>
                             act(
                               () =>
-                                adminApi.updateSystem(row.id, {
+                                adminApi.updateSystem(row.id, {expectedRevision,
                                   nameVi: draft.nameVi,
                                   nameEn: draft.nameEn,
                                   nameZh: draft.nameZh,
-                                  latin: draft.latin || undefined,
+                                  latin: draft.latin || null,
                                   order: Number(draft.order) || 0,
                                 }),
                               `Đã lưu ${row.code}.`,
@@ -515,7 +522,7 @@ export default function AnatomyPanel({
                           type="button"
                           className="bo-btn"
                           onClick={() => {
-                            setEditing(null);
+                            if(!mayDiscard()) return; setEditing(null);
                             setDraft({});
                           }}
                         >
@@ -542,7 +549,7 @@ export default function AnatomyPanel({
                           setSpeciesId(row.species.id);
                           setSystemId(row.id);
                           setPage(1);
-                          setView("structures");
+                          if(!mayDiscard()) return; setEditing(null);setView("structures");
                         }}
                       >
                         {row.structures} cấu trúc →
@@ -554,8 +561,8 @@ export default function AnatomyPanel({
                         type="button"
                         className="bo-btn small"
                         onClick={() => {
-                          setEditing(row.id);
-                          setDraft({
+                          if(!mayDiscard()) return; setEditing(row.id); setExpectedRevision(row.revision);
+                            beginDraft({
                             nameVi: row.nameVi,
                             nameEn: row.nameEn,
                             nameZh: row.nameZh,
@@ -612,11 +619,11 @@ export default function AnatomyPanel({
                           onClick={() =>
                             act(
                               () =>
-                                adminApi.updateSpecies(row.id, {
+                                adminApi.updateSpecies(row.id, {expectedRevision,
                                   nameVi: draft.nameVi,
                                   nameEn: draft.nameEn,
                                   nameZh: draft.nameZh,
-                                  latin: draft.latin || undefined,
+                                  latin: draft.latin || null,
                                 }),
                               `Đã lưu ${row.code}.`,
                             )
@@ -628,7 +635,7 @@ export default function AnatomyPanel({
                           type="button"
                           className="bo-btn"
                           onClick={() => {
-                            setEditing(null);
+                            if(!mayDiscard()) return; setEditing(null);
                             setDraft({});
                           }}
                         >
@@ -658,7 +665,7 @@ export default function AnatomyPanel({
                           setSpeciesId(row.id);
                           setSystemId("");
                           setPage(1);
-                          setView("structures");
+                          if(!mayDiscard()) return; setEditing(null);setView("structures");
                         }}
                       >
                         {row.structures} cấu trúc →
@@ -669,8 +676,8 @@ export default function AnatomyPanel({
                         type="button"
                         className="bo-btn small"
                         onClick={() => {
-                          setEditing(row.id);
-                          setDraft({
+                          if(!mayDiscard()) return; setEditing(row.id); setExpectedRevision(row.revision);
+                            beginDraft({
                             nameVi: row.nameVi,
                             nameEn: row.nameEn,
                             nameZh: row.nameZh,
@@ -689,6 +696,6 @@ export default function AnatomyPanel({
           {species.length === 0 && <p className="bo-empty">Chưa có loài nào.</p>}
         </div>
       )}
-    </>
+    </fieldset>
   );
 }

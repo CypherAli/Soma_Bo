@@ -1,5 +1,6 @@
 "use client";
 
+import { useDirtyGuard } from "@/lib/dirty-guard";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type Locale3, type TranslationRow } from "@/lib/admin";
 
@@ -52,6 +53,10 @@ export default function TranslationPanel({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [baseline,setBaseline] = useState('');
+  const [expectedRevision,setExpectedRevision] = useState('missing');
+  const mayDiscard = useDirtyGuard(openId!==null && JSON.stringify({draft,reviewed})!==baseline,busy);
+  const close = () => {if(mayDiscard()) setOpenId(null);};
   const load = useCallback(
     async (isCurrent: () => boolean = () => true) => {
       await Promise.resolve();
@@ -91,12 +96,15 @@ export default function TranslationPanel({
   }, [load]);
 
   const reset = (apply: () => void) => {
-    apply();
+    if(!mayDiscard()) return; apply();
     setOpenId(null);
     setPage(1);
   };
 
   const open = (row: TranslationRow) => {
+    if(!mayDiscard()) return;
+    setExpectedRevision(row.target?.revision ?? "missing");
+    setBaseline(JSON.stringify({draft:Object.fromEntries(FIELDS.map(([key])=>[key,row.target?.[key]??""])),reviewed:row.target ? !row.target.machineTranslated:false}));
     setOpenId(row.id);
     setDraft({
       description: row.target?.description ?? "",
@@ -118,6 +126,7 @@ export default function TranslationPanel({
     setNote("");
     try {
       await adminApi.saveContent(row.id, locale, {
+        expectedRevision,
         description: draft.description,
         clinical: draft.clinical,
         imaging: draft.imaging,
@@ -141,7 +150,7 @@ export default function TranslationPanel({
     locale === "en" ? row.nameEn : row.nameZh;
 
   return (
-    <>
+    <fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0}}>
       <div className="bo-bar">
         <form
           className="grow"
@@ -214,7 +223,7 @@ export default function TranslationPanel({
               <button
                 type="button"
                 className="bo-btn small"
-                onClick={() => (isOpen ? setOpenId(null) : open(row))}
+                onClick={() => (isOpen ? close() : open(row))}
               >
                 {isOpen ? "Đóng" : "Dịch"}
               </button>
@@ -286,7 +295,7 @@ export default function TranslationPanel({
                   <button
                     type="button"
                     className="bo-btn"
-                    onClick={() => setOpenId(null)}
+                    onClick={close}
                   >
                     Huỷ
                   </button>
@@ -308,7 +317,7 @@ export default function TranslationPanel({
           className="bo-btn small"
           disabled={page <= 1}
           onClick={() => {
-            setOpenId(null);
+            if(!mayDiscard()) return; setOpenId(null);
             setPage((p) => p - 1);
           }}
         >
@@ -322,13 +331,13 @@ export default function TranslationPanel({
           className="bo-btn small"
           disabled={page >= lastPage}
           onClick={() => {
-            setOpenId(null);
+            if(!mayDiscard()) return; setOpenId(null);
             setPage((p) => p + 1);
           }}
         >
           Sau
         </button>
       </div>
-    </>
+    </fieldset>
   );
 }

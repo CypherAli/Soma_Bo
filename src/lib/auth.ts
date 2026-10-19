@@ -13,6 +13,8 @@
  */
 
 const TOKEN_KEY = "soma3d_bo_token";
+let tabToken: string | null = null;
+let storageUnavailable = false;
 export const AUTH_CHANGED_EVENT = "soma3d-bo-auth-changed";
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
@@ -41,19 +43,24 @@ export type AuthResponse = { token: string; expiresAt: string; user: AuthUser };
 export function getToken() {
   if (typeof window === "undefined") return null;
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return storageUnavailable ? tabToken : window.localStorage.getItem(TOKEN_KEY);
   } catch {
     // Trình duyệt chặn site data (cửa sổ riêng tư, thiết lập chặn) thì đọc là
     // ném lỗi chứ không trả null. Coi như chưa đăng nhập.
-    return null;
+    storageUnavailable = true;
+    return tabToken;
   }
 }
 
 function setToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  tabToken = token;
   try {
     if (token === null) localStorage.removeItem(TOKEN_KEY);
     else localStorage.setItem(TOKEN_KEY, token);
+    storageUnavailable = false;
   } catch {
+    storageUnavailable = true;
     // Không lưu được thì phiên chỉ sống trong tab này — vẫn dùng được, chỉ là
     // tải lại trang phải đăng nhập lại. Thà thế còn hơn chặn hẳn lối vào.
   }
@@ -69,6 +76,11 @@ export async function apiRequest<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
+  const headers = new Headers(init.headers);
+  if (!headers.has("Content-Type") && !(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
 
   /*
    * Bọc riêng lỗi MẠNG.
@@ -83,13 +95,10 @@ export async function apiRequest<T>(
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init.headers,
-      },
+      headers,
     });
-  } catch {
+  } catch (error) {
+    if (init.signal?.aborted) throw error;
     throw new Error(
       `Không kết nối được máy chủ API tại ${API_URL} — kiểm tra soma_be đã chạy chưa (cd soma_be && npm start).`,
     );
@@ -97,12 +106,14 @@ export async function apiRequest<T>(
 
   const data: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && token && getToken() === token && headers.get("Authorization") === `Bearer ${token}` && path !== "/auth/login") clearAuth();
     // Backend trả `message` là chuỗi, hoặc là MẢNG chuỗi khi ValidationPipe bắt
     // lỗi từng trường. Không xử mảng thì người dùng nhận về "[object Object]"
     // đúng lúc cần biết mình gõ sai ô nào.
-    const body = data as { message?: string | string[] };
-    const message = Array.isArray(body.message) ? body.message[0] : body.message;
-    throw new Error(message || "Không kết nối được máy chủ");
+    const body = data as { message?: unknown } | null;
+    const raw = body?.message;
+    const message: unknown = Array.isArray(raw) ? raw.find((value) => typeof value === "string") : raw;
+    throw new Error(typeof message === "string" && message ? message : `Yêu cầu thất bại (mã ${response.status})`);
   }
   return data as T;
 }

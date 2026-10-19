@@ -89,6 +89,7 @@ export type AdminUser = {
 };
 
 export type PathologyRow = {
+  revision: string;
   id: string;
   slug: string;
   nameVi: string;
@@ -110,6 +111,7 @@ export type PathologyRow = {
 };
 
 export type PathologyContent = {
+  revision: string;
   id: string;
   locale: string;
   description: string | null;
@@ -121,11 +123,13 @@ export type PathologyContent = {
 };
 
 export type MedicalSource = {
+  revision: string;
   id: string;
   title: string;
   publisher: string;
   year: number | null;
   url: string;
+  localFile?: string | null;
   status: string;
   licenseNote: string | null;
   checkedAt: string;
@@ -144,6 +148,7 @@ export type Citation = {
 };
 
 export type PathologyDetail = PathologyRow & {
+  reviewRevision: string;
   content: PathologyContent[];
   citations: Citation[];
   /** Cấu trúc phụ mà bệnh còn ảnh hưởng tới, khác cấu trúc chính `structure`. */
@@ -154,6 +159,7 @@ export type PathologyDetail = PathologyRow & {
 
 
 export type Species = {
+  revision: string;
   id: string;
   code: string;
   nameVi: string;
@@ -165,6 +171,7 @@ export type Species = {
 };
 
 export type AnatomySystem = {
+  revision: string;
   id: string;
   code: string;
   nameVi: string;
@@ -178,6 +185,7 @@ export type AnatomySystem = {
 };
 
 export type StructureRow = {
+  revision: string;
   id: string;
   code: string;
   meshName: string | null;
@@ -197,6 +205,7 @@ export type StructureRow = {
 };
 
 export type QuizOption = {
+  revision: string;
   id: string;
   textVi: string;
   textEn: string;
@@ -206,6 +215,7 @@ export type QuizOption = {
 };
 
 export type QuizQuestion = {
+  revision: string;
   id: string;
   promptVi: string;
   promptEn: string;
@@ -280,6 +290,7 @@ export type SessionRow = {
 };
 
 export type ReviewRow = {
+  reviewRevision: string;
   id: string;
   slug: string;
   nameVi: string;
@@ -307,6 +318,7 @@ export type CitationRow = {
 };
 
 export type TranslationContent = {
+  revision: string;
   locale: string;
   machineTranslated: boolean;
   description: string | null;
@@ -399,7 +411,7 @@ export const adminApi = {
         | "source"
         | "sourcePage"
       >
-    >,
+    > & { expectedRevision: string },
   ) =>
     apiRequest<PathologyRow>(`/admin/pathologies/${id}`, {
       method: "PATCH",
@@ -409,17 +421,17 @@ export const adminApi = {
   saveContent: (
     id: string,
     locale: Locale3,
-    body: Partial<Omit<PathologyContent, "id" | "locale">>,
+    body: Partial<Omit<PathologyContent, "id" | "locale" | "revision">> & { expectedRevision: string },
   ) =>
     apiRequest<PathologyContent>(`/admin/pathologies/${id}/content/${locale}`, {
       method: "PUT",
       body: JSON.stringify(body),
     }),
 
-  setReviewed: (id: string, needsReview: boolean) =>
+  setReviewed: (id: string, needsReview: boolean, expectedReviewRevision:string) =>
     apiRequest<{ id: string; needsReview: boolean }>(
       `/admin/pathologies/${id}/reviewed`,
-      { method: "PATCH", body: JSON.stringify({ needsReview }) },
+      { method: "PATCH", body: JSON.stringify({ needsReview, expectedReviewRevision }) },
     ),
 
   addCitation: (
@@ -444,7 +456,7 @@ export const adminApi = {
 
   sources: () => apiRequest<MedicalSource[]>("/admin/sources"),
 
-  updateSource: (id: string, body: Partial<MedicalSource>) =>
+  updateSource: (id: string, body: Partial<MedicalSource> & { expectedRevision: string }) =>
     apiRequest<MedicalSource>(`/admin/sources/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -457,7 +469,7 @@ export const adminApi = {
 
   species: () => apiRequest<Species[]>("/admin/species"),
 
-  updateSpecies: (id: string, body: Partial<Species>) =>
+  updateSpecies: (id: string, body: Partial<Species> & { expectedRevision: string }) =>
     apiRequest<Species>(`/admin/species/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -466,7 +478,7 @@ export const adminApi = {
   systems: (params: { speciesId?: string; q?: string }) =>
     apiRequest<AnatomySystem[]>(`/admin/systems${query(params)}`),
 
-  updateSystem: (id: string, body: Partial<AnatomySystem>) =>
+  updateSystem: (id: string, body: Partial<AnatomySystem> & { expectedRevision: string }) =>
     apiRequest<AnatomySystem>(`/admin/systems/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -494,7 +506,7 @@ export const adminApi = {
         | "descriptionEn"
         | "descriptionZh"
       >
-    >,
+    > & { expectedRevision: string },
   ) =>
     apiRequest<StructureRow>(`/admin/structures/${id}`, {
       method: "PATCH",
@@ -502,10 +514,10 @@ export const adminApi = {
     }),
 
   /** Neo bệnh lý vào cấu trúc 3D theo MÃ; `null` là bỏ neo. */
-  linkStructure: (pathologyId: string, structureCode: string | null) =>
+  linkStructure: (pathologyId: string, structureCode: string | null, expectedRevision:string) =>
     apiRequest<{ structure: { code: string; nameVi: string } | null }>(
       `/admin/pathologies/${pathologyId}/structure`,
-      { method: "PATCH", body: JSON.stringify({ structureCode }) },
+      { method: "PATCH", body: JSON.stringify({ structureCode,expectedRevision }) },
     ),
 
   /** Cấu trúc PHỤ mà bệnh đa cơ quan còn ảnh hưởng tới (nhiều-nhiều). */
@@ -531,14 +543,14 @@ export const adminApi = {
         QuizQuestion,
         "promptVi" | "promptEn" | "promptZh" | "explanation" | "source"
       >
-    >,
+    > & { expectedRevision: string },
   ) =>
     apiRequest<QuizQuestion>(`/admin/quizzes/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
 
-  updateQuizOption: (id: string, body: Partial<QuizOption>) =>
+  updateQuizOption: (id: string, body: Partial<QuizOption> & { expectedRevision: string }) =>
     apiRequest<QuizOption>(`/admin/quiz-options/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -570,10 +582,10 @@ export const adminApi = {
   reviewQueue: (params: { clinicalSystem?: string; q?: string; page?: number }) =>
     apiRequest<Page<ReviewRow>>(`/admin/review-queue${query(params)}`),
 
-  bulkReview: (ids: string[], value: boolean) =>
+  bulkReview: (ids: string[], value: boolean, revisions:Record<string,string>) =>
     apiRequest<{ updated: number; skipped: number }>("/admin/review-queue/bulk", {
       method: "POST",
-      body: JSON.stringify({ ids, value }),
+      body: JSON.stringify({ ids, value, revisions }),
     }),
 
   citationQueue: (params: {
@@ -599,6 +611,8 @@ export const adminApi = {
       `/admin/translations${query(params)}`,
     ),
 
+  restorePreview: (id: string) => apiRequest<{entity:string;entityId:string;data:Record<string,unknown>;current:Record<string,unknown>;expectedRevision:string}>(`/admin/audit/${id}/restore`),
+  restoreAudit: (id:string, expectedRevision:string) => apiRequest(`/admin/audit/${id}/restore`,{method:'POST',body:JSON.stringify({expectedRevision})}),
   audit: (params: { entity?: string; actorEmail?: string; page?: number }) =>
     apiRequest<Page<AuditEntry>>(`/admin/audit${query(params)}`),
 };

@@ -11,6 +11,10 @@ const LOCALE_NAME: Record<string, string> = {
 };
 
 const ACTION_NAME: Record<string, string> = {
+  draft: 'lưu nháp',
+  publish: 'xuất bản',
+  restore: 'khôi phục',
+  upload: 'tải tệp',
   create: "tạo",
   update: "sửa",
   delete: "xoá",

@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { adminApi, type AuditEntry } from "@/lib/admin";
 
 const ACTION_NAME: Record<string, string> = {
+  draft: 'lưu nháp',
+  publish: 'xuất bản',
+  restore: 'khôi phục',
+  replace: 'thay tài liệu',
+  upload: 'tải tệp',
   create: "tạo",
   update: "sửa",
   delete: "xoá",
@@ -14,6 +19,8 @@ const ACTION_NAME: Record<string, string> = {
 };
 
 const ENTITIES = [
+  { value: 'site_content', label: 'Nội dung website & mô hình' },
+  { value: 'site_asset', label: 'Tệp mô hình & hình ảnh' },
   { value: "", label: "Mọi đối tượng" },
   { value: "pathology", label: "Bệnh lý" },
   { value: "pathology_content", label: "Nội dung bệnh lý" },
@@ -30,6 +37,11 @@ function summarise(value: unknown) {
 }
 
 export default function AuditPanel() {
+  const [restore,setRestore]=useState<{id:string;preview:Awaited<ReturnType<typeof adminApi.restorePreview>>}|null>(null);
+  const [restoring,setRestoring]=useState(false);
+  const [note,setNote]=useState('');
+  const previewRestore=async(id:string)=>{try{setError('');setRestore({id,preview:await adminApi.restorePreview(id)});}catch(e){setError(e instanceof Error?e.message:'Không mở được phiên bản');}};
+  const applyRestore=async()=>{if(!restore||restoring)return;setRestoring(true);try{await adminApi.restoreAudit(restore.id,restore.preview.expectedRevision);setRestore(null);setNote('Đã khôi phục nội dung và ghi nhật ký.'+(['pathology','pathology_content'].includes(restore.preview.entity)?' Bài bệnh được trả về chờ duyệt.':''));await load();}catch(e){setError(e instanceof Error?e.message:'Không khôi phục được');}finally{setRestoring(false);}};
   const [rows, setRows] = useState<AuditEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(50);
@@ -124,7 +136,8 @@ export default function AuditPanel() {
         </form>
       </div>
 
-      {error && <p className="bo-msg err">{error}</p>}
+      {error && <p className="bo-msg err">{error}</p>}{note && <p className="bo-msg ok">{note}</p>}
+      {restore && <div className="bo-drawer" role="dialog" aria-modal="true" aria-label="Đối chiếu trước khi khôi phục"><button aria-label="Đóng" disabled={restoring} onClick={()=>setRestore(null)}/><section><header><h2>Đối chiếu trước khi khôi phục</h2></header><div className="bo-body"><p>Khôi phục các trường dưới đây. Nội dung tài liệu gốc và mã liên kết được giữ nguyên.</p><table className="bo-table"><thead><tr><th>Trường</th><th>Hiện tại</th><th>Sau khôi phục</th></tr></thead><tbody>{Object.entries(restore.preview.data).map(([key,value])=><tr key={key}><td>{key}</td><td style={{whiteSpace:'pre-wrap'}}>{String(restore.preview.current[key]??'—')}</td><td style={{whiteSpace:'pre-wrap'}}>{String(value??'—')}</td></tr>)}</tbody></table><div className="bo-bar"><button className="bo-btn primary" disabled={restoring} onClick={()=>void applyRestore()}>{restoring?'Đang khôi phục…':'Khôi phục phiên bản này'}</button><button className="bo-btn" disabled={restoring} onClick={()=>setRestore(null)}>Huỷ</button></div></div></section></div>}
 
       <div className="bo-table-wrap">
         <table className="bo-table">
@@ -162,6 +175,7 @@ export default function AuditPanel() {
                 <td style={{ maxWidth: 320 }}>
                   {expanded === row.id ? (
                     <>
+                      {['pathology','pathology_content','species','anatomy_system','structure','quiz_question','quiz_option','medical_source'].includes(row.entity) && row.before && typeof row.before==='object' && Object.keys(row.before).some(key=>!['needsReview','localFile'].includes(key)) ? <button className="bo-btn small" onClick={event=>{event.stopPropagation();void previewRestore(row.id);}}>Đối chiếu & khôi phục</button> : null}
                       <em>trước:</em>
                       <pre
                         style={{
