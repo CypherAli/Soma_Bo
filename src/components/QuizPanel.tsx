@@ -1,5 +1,6 @@
 "use client";
 
+import { useDirtyGuard } from "@/lib/dirty-guard";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type AnatomySystem, type QuizQuestion } from "@/lib/admin";
 
@@ -12,7 +13,7 @@ import { adminApi, type AnatomySystem, type QuizQuestion } from "@/lib/admin";
  * mẫu theo hệ cơ quan. Không nói ra thì người quản trị sẽ tưởng mình vừa xoá
  * hết đề của trang.
  */
-export default function QuizPanel() {
+export default function QuizPanel({onWebsite}:{onWebsite:()=>void}) {
   const [rows, setRows] = useState<QuizQuestion[]>([]);
   const [systems, setSystems] = useState<AnatomySystem[]>([]);
   const [total, setTotal] = useState(0);
@@ -24,6 +25,11 @@ export default function QuizPanel() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [baseline,setBaseline] = useState('');
+  const [expectedRevision,setExpectedRevision] = useState('');
+  const [mutating,setMutating] = useState(false);
+  const mayDiscard = useDirtyGuard(editing!==null && JSON.stringify(draft)!==baseline,mutating);
+  const beginDraft = (value:typeof draft) => {setDraft(value);setBaseline(JSON.stringify(value));};
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
 
@@ -74,6 +80,7 @@ export default function QuizPanel() {
   }, []);
 
   const act = async (run: () => Promise<unknown>, ok: string) => {
+    if(mutating) return; setMutating(true);
     setError("");
     setNote("");
     try {
@@ -84,26 +91,21 @@ export default function QuizPanel() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không lưu được");
-    }
+    } finally {setMutating(false);}
   };
 
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <>
-      <p className="bo-msg" style={{ background: "var(--bo-warn-bg)", color: "var(--bo-warn)" }}>
-        Đây là các câu hỏi trong <b>cơ sở dữ liệu</b> — không phải ngân hàng đề
-        của trang web. Bộ 257 câu theo vùng cơ thể nằm trong mã TypeScript của
-        Soma_Fe và được gác bởi <code>npm run verify:quiz-bank</code>; sửa ở đây
-        không ảnh hưởng tới bộ đó.
-      </p>
+    <fieldset disabled={mutating} style={{border:0,padding:0,margin:0,minWidth:0}}>
+      <div className="bo-msg"><b>Chọn ngân hàng câu hỏi</b><p>Câu hỏi trên website và câu hỏi theo hệ cơ quan có nguồn riêng. Chọn đúng bộ trước khi sửa.</p><button className="bo-btn primary" onClick={onWebsite}>Mở ngân hàng câu hỏi website</button> <span className="bo-tag">Đang xem: Câu hỏi theo hệ cơ quan</span></div>
 
       <div className="bo-bar">
         <form
           className="grow"
           onSubmit={(event) => {
             event.preventDefault();
-            setSearch(q.trim());
+            if(!mayDiscard()) return; setEditing(null); setSearch(q.trim());
             setPage(1);
           }}
         >
@@ -119,7 +121,7 @@ export default function QuizPanel() {
           style={{ width: "auto" }}
           value={systemId}
           onChange={(event) => {
-            setSystemId(event.target.value);
+            if(!mayDiscard()) return; setEditing(null); setSystemId(event.target.value);
             setPage(1);
           }}
         >
@@ -205,7 +207,7 @@ export default function QuizPanel() {
                   onClick={() =>
                     act(
                       () =>
-                        adminApi.updateQuiz(row.id, {
+                        adminApi.updateQuiz(row.id, {expectedRevision,
                           promptVi: draft.promptVi,
                           promptEn: draft.promptEn,
                           promptZh: draft.promptZh,
@@ -222,7 +224,7 @@ export default function QuizPanel() {
                   type="button"
                   className="bo-btn"
                   onClick={() => {
-                    setEditing(null);
+                    if(!mayDiscard()) return; setEditing(null);
                     setDraft({});
                   }}
                 >
@@ -262,11 +264,11 @@ export default function QuizPanel() {
                       <button
                         type="button"
                         className="bo-btn small"
-                        onClick={() =>
-                          act(
+                        onClick={() => mayDiscard() && act(
                             () =>
                               adminApi.updateQuizOption(option.id, {
                                 isCorrect: true,
+                                expectedRevision: option.revision,
                               }),
                             "Đã đổi đáp án đúng — các phương án còn lại tự thành sai.",
                           )
@@ -284,8 +286,8 @@ export default function QuizPanel() {
                   type="button"
                   className="bo-btn small"
                   onClick={() => {
-                    setEditing(row.id);
-                    setDraft({
+                    if(!mayDiscard()) return; setEditing(row.id); setExpectedRevision(row.revision);
+                            beginDraft({
                       promptVi: row.promptVi,
                       promptEn: row.promptEn,
                       promptZh: row.promptZh,
@@ -312,7 +314,7 @@ export default function QuizPanel() {
           type="button"
           className="bo-btn small"
           disabled={page <= 1}
-          onClick={() => setPage((p) => p - 1)}
+          onClick={() => {if(mayDiscard()) {setEditing(null);setPage((p)=>p-1);}}}
         >
           Trước
         </button>
@@ -323,11 +325,11 @@ export default function QuizPanel() {
           type="button"
           className="bo-btn small"
           disabled={page >= lastPage}
-          onClick={() => setPage((p) => p + 1)}
+          onClick={() => {if(mayDiscard()) {setEditing(null);setPage((p)=>p+1);}}}
         >
           Sau
         </button>
       </div>
-    </>
+    </fieldset>
   );
 }

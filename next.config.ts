@@ -6,6 +6,8 @@ import type { NextConfig } from "next";
  * Bỏ hai thứ đó là bỏ luôn phần lớn thời gian build.
  */
 const nextConfig: NextConfig = {
+  // Xuất bản standalone để Dockerfile chỉ copy những gì server cần.
+  output: "standalone",
   devIndicators: false,
 };
 

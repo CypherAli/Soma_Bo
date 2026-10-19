@@ -58,7 +58,7 @@ Bậc quyền, từ thấp lên cao:
 
 ## Các khu
 
-Mười lăm khu, chia năm nhóm.
+Các khu quản trị, gồm Content Studio và các nhóm vận hành hiện có.
 
 **Theo dõi**
 
@@ -100,20 +100,11 @@ Mười lăm khu, chia năm nhóm.
 | Nhật ký | Ai đổi gì, lúc nào, **và giá trị trước khi đổi** |
 | Hồ sơ của tôi | Quyền đang có và **đổi mật khẩu** — đổi xong cắt hết phiên khác |
 
-### Những gì back office CỐ Ý không quản lý
+### Content Studio — quản trị nội dung FE
 
-- **Ngân hàng đề 257 câu** theo vùng cơ thể: là mã TypeScript trong Soma_Fe, gác
-  bởi `npm run verify:quiz-bank`. Bảng `quiz_questions` trong cơ sở dữ liệu chỉ
-  có mấy câu mẫu theo hệ cơ quan; khu Trắc nghiệm nói rõ điều này ngay trên giao
-  diện để không ai tưởng mình vừa xoá hết đề của trang.
-- **Chữ tĩnh của trang ngoài** (nhãn, menu, nội dung trang chủ): là mã TypeScript
-  trong Soma_Fe. Đây là công cụ quản trị dữ liệu, không phải CMS sửa từng chữ.
-- **Cảnh và điểm chú giải 3D** (1310 hotspot, 130 model): gác bởi
-  `npm run verify:scenes` và `verify:models` bên Soma_Fe, vì chúng phải khớp
-  node thật trong file glTF.
-- **Tài liệu cá nhân, bộ đề riêng và bộ nhớ hội thoại của người dùng.** Trang web
-  hứa "chỉ tài khoản của bạn truy cập"; cho quản trị đọc được là phá lời hứa đó.
-  Khu Tài khoản chỉ hiện SỐ LƯỢNG, không hiện nội dung.
+Khu **Website & mô hình → Content Studio** quản lý giao diện, cảnh 3D, mô hình GLB thay thế, chú giải, giải thích và các kho câu hỏi công khai của FE. Có lưu nháp, xem trước, phân quyền xuất bản, đối chiếu thay đổi và khôi phục phiên bản.
+
+Xem hướng dẫn đầy đủ tại [docs/CONTENT_STUDIO.md](docs/CONTENT_STUDIO.md). Tài liệu cá nhân và bộ nhớ hội thoại vẫn chỉ thuộc người dùng; BO chỉ xem phần kê khai và thống kê đã có.
 
 ## Những trường cố ý không cho sửa
 

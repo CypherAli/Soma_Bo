@@ -137,6 +137,10 @@ export default function PathologyPanel({
     setPage(1);
   };
 
+  useEffect(()=>{
+    if(!openId)return;
+    const p=new URLSearchParams(window.location.search);p.set('tab','pathologies');p.set('pathologyId',openId);window.history.replaceState(null,'','?'+p.toString());
+  },[openId]);
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -245,7 +249,8 @@ export default function PathologyPanel({
                     {LOCALES.map((locale) => {
                       const has = row.locales.includes(locale);
                       const machine = row.machineLocales.includes(locale);
-                      return (
+
+  return (
                         <span
                           key={locale}
                           className={`bo-tag ${has ? (machine ? "warn" : "good") : "bad"}`}
@@ -316,7 +321,7 @@ export default function PathologyPanel({
       </div>
 
       {openId && (
-        <PathologyDrawer
+        <PathologyDrawer key={openId}
           id={openId}
           canReview={hasAtLeast(role, "admin")}
           onClose={() => setOpenId(null)}

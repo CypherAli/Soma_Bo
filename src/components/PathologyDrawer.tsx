@@ -1,5 +1,7 @@
 "use client";
 
+import { clinicalDraft, draftChanged, mergeClinicalDrafts, type ClinicalDraft } from '@/lib/pathology-drafts';
+import { useDirtyGuard } from "@/lib/dirty-guard";
 import { useCallback, useEffect, useState } from "react";
 import {
   adminApi,
@@ -13,7 +15,7 @@ import { SITE_URL } from "@/lib/auth";
 
 /** Năm mục nội dung của một bài bệnh học, đúng thứ tự trang bệnh lý hiển thị. */
 const FIELDS: {
-  key: keyof Omit<PathologyContent, "id" | "locale" | "machineTranslated">;
+  key: keyof Omit<PathologyContent, "id" | "locale" | "machineTranslated" | "revision">;
   label: string;
 }[] = [
   { key: "description", label: "Đại cương" },
@@ -25,28 +27,9 @@ const FIELDS: {
 
 /** Bản nháp của MỘT ngôn ngữ: năm ô chữ, cộng cờ dịch máy. */
 type TextField = (typeof FIELDS)[number]["key"];
-type Draft = Record<TextField, string> & { machineTranslated: boolean };
-
-const emptyDraft = (): Draft => ({
-  description: "",
-  clinical: "",
-  imaging: "",
-  progression: "",
-  treatment: "",
-  machineTranslated: false,
-});
-
-function toDraft(content: PathologyContent | undefined): Draft {
-  if (!content) return emptyDraft();
-  return {
-    description: content.description ?? "",
-    clinical: content.clinical ?? "",
-    imaging: content.imaging ?? "",
-    progression: content.progression ?? "",
-    treatment: content.treatment ?? "",
-    machineTranslated: content.machineTranslated,
-  };
-}
+type Draft = ClinicalDraft;
+const emptyDraft = () => clinicalDraft();
+function toDraft(content:PathologyContent|undefined):Draft { return clinicalDraft(content ? {...content,description:content.description??'',clinical:content.clinical??'',imaging:content.imaging??'',progression:content.progression??'',treatment:content.treatment??''} : undefined); }
 
 /**
  * Ngăn soạn một bài bệnh học.
@@ -102,7 +85,11 @@ export default function PathologyDrawer({
   const [citePage, setCitePage] = useState("");
   const [citeQuote, setCiteQuote] = useState("");
 
-  const load = useCallback(async () => {
+  const [metaRevision,setMetaRevision] = useState('');
+  const dirty = Object.values(drafts).some(draftChanged) || meta !== null || linkCode !== null || !!relatedCode || !!citeSource || !!citePage || !!citeQuote;
+  const mayDiscard = useDirtyGuard(dirty,saving);
+  const close = useCallback(()=>{ if(mayDiscard()) onClose(); },[mayDiscard,onClose]);
+  const load = useCallback(async (savedLocale?: string) => {
     // Nhường một nhịp trước khi chạm vào state, đúng quy ước đã dùng ở
     // `HomeNav`: gọi setState ĐỒNG BỘ trong thân effect thì React Compiler báo
     // lỗi "cascading renders", và cảnh báo đó đúng — lần dựng đầu sẽ render hai
@@ -112,14 +99,7 @@ export default function PathologyDrawer({
       const detail = await adminApi.pathology(id);
       setData(detail);
       setError("");
-      setDrafts(
-        Object.fromEntries(
-          LOCALES.map((l) => [
-            l,
-            toDraft(detail.content.find((c) => c.locale === l)),
-          ]),
-        ),
-      );
+      setDrafts(current=>mergeClinicalDrafts(current,Object.fromEntries(LOCALES.map(lang=>[lang,toDraft(detail.content.find(c=>c.locale===lang))])),savedLocale));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không nạp được bệnh lý");
     }
@@ -147,16 +127,16 @@ export default function PathologyDrawer({
   // một ngăn là quãng đường thừa lặp lại vài trăm lần một buổi.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [close]);
 
   if (!data) {
     return (
       <div className="bo-drawer">
-        <button type="button" aria-label="Đóng" onClick={onClose} />
+        <button disabled={saving} type="button" aria-label="Đóng" onClick={close} />
         <section>
           <header>
             <h2>{error ? "Lỗi" : "Đang nạp…"}</h2>
@@ -171,19 +151,20 @@ export default function PathologyDrawer({
 
   const draft = drafts[locale] ?? emptyDraft();
   const setText = (key: TextField, value: string) =>
-    setDrafts((all) => ({ ...all, [locale]: { ...draft, [key]: value } }));
+    !saving && setDrafts((all) => ({ ...all, [locale]: { ...draft, [key]: value } }));
   const setMachine = (value: boolean) =>
-    setDrafts((all) => ({
+    !saving && setDrafts((all) => ({
       ...all,
       [locale]: { ...draft, machineTranslated: value },
     }));
 
   const saveContent = async () => {
-    setSaving(true);
+    if(saving)return; setSaving(true);
     setError("");
     setNote("");
     try {
       await adminApi.saveContent(id, locale, {
+        expectedRevision: draft.expectedRevision,
         description: draft.description,
         clinical: draft.clinical,
         imaging: draft.imaging,
@@ -192,7 +173,7 @@ export default function PathologyDrawer({
         machineTranslated: draft.machineTranslated,
       });
       setNote(`Đã lưu bản ${locale}.`);
-      await load();
+      await load(locale);
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không lưu được");
@@ -202,6 +183,7 @@ export default function PathologyDrawer({
   };
 
   const act = async (run: () => Promise<unknown>, ok: string) => {
+    if(saving) return; setSaving(true);
     setError("");
     setNote("");
     try {
@@ -211,12 +193,12 @@ export default function PathologyDrawer({
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Thao tác không thành công");
-    }
+    } finally {setSaving(false);}
   };
 
   return (
     <div className="bo-drawer">
-      <button type="button" aria-label="Đóng" onClick={onClose} />
+      <button disabled={saving} type="button" aria-label="Đóng" onClick={close} />
       <section>
         <header>
           <div>
@@ -227,7 +209,7 @@ export default function PathologyDrawer({
               {data.clinicalSystem ? ` · ${data.clinicalSystem}` : ""}
             </p>
           </div>
-          <button type="button" className="bo-btn small" onClick={onClose}>
+          <button disabled={saving} type="button" className="bo-btn small" onClick={close}>
             Đóng
           </button>
         </header>
@@ -244,12 +226,12 @@ export default function PathologyDrawer({
               {data.needsReview ? "Chưa có người duyệt" : "Đã duyệt chuyên môn"}
             </span>
             {canReview && (
-              <button
+              <button disabled={saving}
                 type="button"
                 className="bo-btn small"
                 onClick={() =>
                   act(
-                    () => adminApi.setReviewed(id, !data.needsReview),
+                    () => adminApi.setReviewed(id, !data.needsReview, data.reviewRevision),
                     data.needsReview
                       ? "Đã đánh dấu duyệt."
                       : "Đã trả về hàng chờ duyệt.",
@@ -299,7 +281,7 @@ export default function PathologyDrawer({
                       : "chưa neo"}
                   </b>
                   {" — "}
-                  <button
+                  <button disabled={saving}
                     type="button"
                     className="bo-btn small"
                     onClick={() => setLinkCode(data.structure?.code ?? "")}
@@ -310,7 +292,7 @@ export default function PathologyDrawer({
                 {linkCode !== null && (
                   <div className="bo-field" style={{ marginTop: 4 }}>
                     <label htmlFor="p-link">Mã cấu trúc</label>
-                    <input
+                    <input disabled={saving}
                       id="p-link"
                       className="bo-input"
                       placeholder="ví dụ giai-phau-tim — để trống là bỏ neo"
@@ -330,7 +312,7 @@ export default function PathologyDrawer({
                       Tra mã ở tab Giải phẫu.
                     </p>
                     <div className="bo-bar">
-                      <button
+                      <button disabled={saving}
                         type="button"
                         className="bo-btn primary"
                         onClick={() =>
@@ -338,6 +320,7 @@ export default function PathologyDrawer({
                             await adminApi.linkStructure(
                               id,
                               linkCode.trim() || null,
+                              data.revision,
                             );
                             setLinkCode(null);
                           }, "Đã cập nhật cấu trúc.")
@@ -345,7 +328,7 @@ export default function PathologyDrawer({
                       >
                         Lưu
                       </button>
-                      <button
+                      <button disabled={saving}
                         type="button"
                         className="bo-btn"
                         onClick={() => setLinkCode(null)}
@@ -356,11 +339,11 @@ export default function PathologyDrawer({
                   </div>
                 )}
                 <footer>
-                  <button
+                  <button disabled={saving}
                     type="button"
                     className="bo-btn small"
                     onClick={() =>
-                      setMeta({
+                      {setMetaRevision(data.revision); setMeta({
                         nameVi: data.nameVi,
                         nameEn: data.nameEn,
                         nameZh: data.nameZh,
@@ -369,7 +352,7 @@ export default function PathologyDrawer({
                         clinicalSystem: data.clinicalSystem ?? "",
                         source: data.source,
                         sourcePage: data.sourcePage?.toString() ?? "",
-                      })
+                      });}
                     }
                   >
                     Sửa thuộc tính
@@ -391,7 +374,7 @@ export default function PathologyDrawer({
                 ).map(([key, label]) => (
                   <div className="bo-field" key={key}>
                     <label htmlFor={`m-${key}`}>{label}</label>
-                    <input
+                    <input disabled={saving}
                       id={`m-${key}`}
                       className="bo-input"
                       value={meta[key]}
@@ -403,7 +386,7 @@ export default function PathologyDrawer({
                 ))}
                 <div className="bo-field">
                   <label htmlFor="m-severity">Mức độ ưu tiên hiển thị</label>
-                  <select
+                  <select disabled={saving}
                     id="m-severity"
                     className="bo-select"
                     value={meta.severity}
@@ -418,28 +401,29 @@ export default function PathologyDrawer({
                   </select>
                 </div>
                 <footer>
-                  <button
+                  <button disabled={saving}
                     type="button"
                     className="bo-btn primary"
                     onClick={() =>
                       act(async () => {
                         await adminApi.updatePathology(id, {
+                          expectedRevision: metaRevision,
                           nameVi: meta.nameVi,
                           nameEn: meta.nameEn,
                           nameZh: meta.nameZh,
                           // Ô để trống nghĩa là "không có", gửi `undefined` thì
                           // DTO bỏ qua và giá trị cũ ở lại — người sửa tưởng đã
                           // xoá mà thực ra chưa.
-                          icdCode: meta.icdCode.trim() || undefined,
+                          icdCode: meta.icdCode.trim() || null,
                           severity:
                             (meta.severity as PathologyDetail["severity"]) ||
-                            undefined,
+                            null,
                           clinicalSystem:
-                            meta.clinicalSystem.trim() || undefined,
+                            meta.clinicalSystem.trim() || null,
                           source: meta.source,
                           sourcePage: meta.sourcePage
                             ? Number(meta.sourcePage)
-                            : undefined,
+                            : null,
                         });
                         setMeta(null);
                       }, "Đã lưu thuộc tính.")
@@ -447,10 +431,10 @@ export default function PathologyDrawer({
                   >
                     Lưu thuộc tính
                   </button>
-                  <button
+                  <button disabled={saving}
                     type="button"
                     className="bo-btn"
-                    onClick={() => setMeta(null)}
+                    onClick={() => {if(mayDiscard()) setMeta(null);}}
                   >
                     Huỷ
                   </button>
@@ -465,7 +449,7 @@ export default function PathologyDrawer({
               {LOCALES.map((l) => {
                 const existing = data.content.find((c) => c.locale === l);
                 return (
-                  <button
+                  <button disabled={saving}
                     key={l}
                     type="button"
                     className={l === locale ? "is-on" : ""}
@@ -492,12 +476,15 @@ export default function PathologyDrawer({
               })}
             </div>
 
+            {draft.expectedRevision !== (data.content.find(c=>c.locale===locale)?.revision??'missing') && <div className="bo-msg warn"><p>Bản trên máy chủ đã thay đổi. Phần đang nhập được giữ nguyên.</p><details><summary>Đọc bản mới trên máy chủ</summary>{FIELDS.map(field=><div key={field.key}><b>{field.label}</b><p style={{whiteSpace:'pre-wrap'}}>{data.content.find(c=>c.locale===locale)?.[field.key]??'—'}</p></div>)}</details><button className="bo-btn" disabled={saving} onClick={()=>{if(window.confirm('Bạn đã đối chiếu và muốn lưu phần đang nhập thay cho bản mới trên máy chủ?'))setDrafts(all=>({...all,[locale]:{...draft,expectedRevision:data.content.find(c=>c.locale===locale)?.revision??'missing'}}));}}>Đã đối chiếu, giữ phần đang nhập</button></div>}
+            <button className="bo-btn small" disabled={saving} onClick={()=>void load()}>Tải bản mới để đối chiếu</button>
             {FIELDS.map((field) => (
               <div className="bo-field" key={field.key}>
                 <label htmlFor={`f-${field.key}`}>{field.label}</label>
                 <textarea
                   id={`f-${field.key}`}
                   className="bo-textarea"
+                  disabled={saving}
                   value={draft[field.key]}
                   onChange={(event) => setText(field.key, event.target.value)}
                 />
@@ -505,7 +492,7 @@ export default function PathologyDrawer({
             ))}
 
             <label className="bo-check">
-              <input
+              <input disabled={saving}
                 type="checkbox"
                 checked={draft.machineTranslated}
                 onChange={(event) => setMachine(event.target.checked)}
@@ -551,7 +538,7 @@ export default function PathologyDrawer({
                       <span style={{ fontSize: 12.5 }}>
                         <b>{structure.nameVi}</b> <code>{structure.code}</code>
                       </span>
-                      <button
+                      <button disabled={saving}
                         type="button"
                         className="bo-btn small danger"
                         onClick={() =>
@@ -579,13 +566,13 @@ export default function PathologyDrawer({
                   }, "Đã thêm cấu trúc phụ.");
                 }}
               >
-                <input
+                <input disabled={saving}
                   className="bo-input"
                   placeholder="Mã cấu trúc, tra ở tab Giải phẫu"
                   value={relatedCode}
                   onChange={(event) => setRelatedCode(event.target.value)}
                 />
-                <button type="submit" className="bo-btn">
+                <button disabled={saving} type="submit" className="bo-btn">
                   Thêm
                 </button>
               </form>
@@ -611,7 +598,7 @@ export default function PathologyDrawer({
                   </span>
                   {canReview && (
                     <>
-                      <button
+                      <button disabled={saving}
                         type="button"
                         className="bo-btn small"
                         onClick={() =>
@@ -626,7 +613,7 @@ export default function PathologyDrawer({
                       >
                         {cite.verified ? "Bỏ đối chiếu" : "Xác nhận đã đối chiếu"}
                       </button>
-                      <button
+                      <button disabled={saving}
                         type="button"
                         className="bo-btn small danger"
                         onClick={() => {
@@ -663,27 +650,27 @@ export default function PathologyDrawer({
               }}
             >
               <b>Thêm trích dẫn</b>
-              <select
+              <select disabled={saving}
                 className="bo-select"
                 value={citeSource}
                 onChange={(event) => setCiteSource(event.target.value)}
                 required
               >
                 <option value="">— chọn tài liệu —</option>
-                {sources.map((source) => (
+                {sources.filter(source=>source.status!=='archived').map((source) => (
                   <option key={source.id} value={source.id}>
                     {source.title}
                     {source.year ? ` (${source.year})` : ""}
                   </option>
                 ))}
               </select>
-              <input
+              <input disabled={saving}
                 className="bo-input"
                 placeholder='Trang hoặc mục, ví dụ "tr. 214"'
                 value={citePage}
                 onChange={(event) => setCitePage(event.target.value)}
               />
-              <textarea
+              <textarea disabled={saving}
                 className="bo-textarea"
                 style={{ minHeight: 64 }}
                 placeholder="Trích nguyên văn để người sau đối chiếu (không bắt buộc)"
@@ -691,7 +678,7 @@ export default function PathologyDrawer({
                 onChange={(event) => setCiteQuote(event.target.value)}
               />
               <div>
-                <button type="submit" className="bo-btn">
+                <button disabled={saving} type="submit" className="bo-btn">
                   Thêm
                 </button>
               </div>
