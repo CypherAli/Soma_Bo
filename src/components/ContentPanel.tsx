@@ -3,7 +3,7 @@
 import { useDirtyGuard } from "@/lib/dirty-guard";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SITE_URL, hasAtLeast, type Role } from '@/lib/auth';
-import { assetUrl, categoryLabels, contentKindLabels, modelField, changes, contentApi, replaceAt, type ContentDetail, type ContentPage, type ContentRow, type Revision, type Value } from '@/lib/content';
+import { assetReference, categoryLabels, contentKindLabels, modelField, changes, contentApi, replaceAt, type ContentDetail, type ContentPage, type ContentRow, type Revision, type Value } from '@/lib/content';
 import ContentFields from './ContentFields';
 import MediaPanel from './MediaPanel';
 import './content.css';
@@ -136,7 +136,7 @@ export default function ContentPanel({ role, jump, onJumpDone }: { role: Role; j
   function choose(row: Pick<ContentRow, 'id' | 'title'>) { if (uploads) { setError('Chờ tải tệp xong trước khi chuyển tài liệu.'); return; } if (dirty) setPending(row); else { setPreviewUrl(''); void open(row); } }
   function resetListing() { setPage(1); setListing(null); setLoading(true); }
   function fields(value: Value, template: Value | undefined, path: string[] = [], search = '') {
-    return <fieldset disabled={!!busy || !!uploads} className="cms-form"><ContentFields value={value} template={template} path={path} onChange={(path, value) => { setPreviewUrl(''); setDraft((current) => replaceAt(current, path, value) as Record<string, Value>); }} filter={search} models={models} onUploadState={(delta) => setUploads((count) => Math.max(0, count + delta))} onUploaded={(asset) => { if (asset.mime === 'model/gltf-binary') setModels((items) => [{ url: assetUrl(asset), meshNames: asset.meshNames }, ...items]); }} /></fieldset>;
+    return <fieldset disabled={!!busy || !!uploads} className="cms-form"><ContentFields value={value} template={template} path={path} onChange={(path, value) => { setPreviewUrl(''); setDraft((current) => replaceAt(current, path, value) as Record<string, Value>); }} filter={search} models={models} onUploadState={(delta) => setUploads((count) => Math.max(0, count + delta))} onUploaded={(asset) => { if (asset.mime === 'model/gltf-binary') setModels((items) => [{ url: assetReference(asset), meshNames: asset.meshNames }, ...items]); }} /></fieldset>;
   }
 
   return <div className="cms-workspace">

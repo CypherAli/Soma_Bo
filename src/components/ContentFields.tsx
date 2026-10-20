@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from 'react';
 import { API_URL, SITE_URL } from '@/lib/auth';
-import { assetUrl, contentApi, type Asset, type Value } from '@/lib/content';
+import { assetReference, contentApi, type Asset, type Value } from '@/lib/content';
 import { arrayItemTemplate, fieldLabel, newArrayItem, matchesField, normalizeFieldSearch } from '@/lib/content-fields';
 import ModelPreview from './ModelPreview';
 
@@ -85,7 +85,7 @@ export default function ContentFields(props: Props) {
         const file = event.target.files?.[0]; if (!file) return;
         if (file.size > (isModel ? 100 : 10) * 1024 * 1024) { setError(isModel ? 'Tệp GLB tối đa 100 MB.' : 'Ảnh tối đa 10 MB.'); event.target.value = ''; return; }
         setError(''); setUploading(true); onUploadState?.(1);
-        try { const asset = await contentApi.upload(file); onChange(path, assetUrl(asset)); onUploaded?.(asset); }
+        try { const asset = await contentApi.upload(file); onChange(path, assetReference(asset)); onUploaded?.(asset); }
         catch (error) { setError(error instanceof Error ? error.message : 'Không tải được tệp'); }
         finally { setUploading(false); onUploadState?.(-1); event.target.value = ''; }
       }} />
