@@ -23,6 +23,7 @@ export const contentApi = {
   upload: async (file: File) => { const form = new FormData(); form.set('file', file); return apiRequest<Asset>('/admin/content/assets', { method: 'POST', body: form }); },
 };
 export const assetUrl = (asset: Pick<Asset, 'id'>) => `${API_URL}/content/assets/${asset.id}`;
+export const assetReference = (asset: Pick<Asset, 'id'>) => `/api/content/assets/${asset.id}`;
 export const categoryLabels: Record<string, string> = { interface: 'Giao diện & điều hướng', models: 'Mô hình & cảnh 3D', explanations: 'Kiến thức & giải thích', quizzes: 'Ngân hàng câu hỏi' };
 export const contentKindLabels: Record<string, string> = { glb: 'Mô hình GLB', 'atlas-scene': 'Cảnh atlas · có thể thay GLB', 'atlas-label': 'Tên cấu trúc atlas', collection: 'Bộ mô hình', content: 'Nội dung' };
 

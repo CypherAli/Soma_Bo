@@ -4,15 +4,17 @@
   "private": true,
   "description": "Back office Soma 3D — quản trị nội dung y khoa, tài khoản và nhật ký thao tác.",
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
+    "dev": "node scripts/next-command.mjs dev -p 3001",
+    "build": "node scripts/next-command.mjs build",
     "start": "next start -p 3001",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --import ./scripts/ts-resolve.mjs --test \"src/**/*.test.ts\""
+    "test:unit": "node --import ./scripts/ts-resolve.mjs --test \"src/**/*.test.ts\"",
+    "postinstall": "node scripts/patch-dependencies.cjs",
+    "test:security": "node scripts/test-dependency-security.cjs"
   },
   "dependencies": {
-    "next": "16.2.10",
+    "next": "16.4.2",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -21,7 +23,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.4.2",
     "typescript": "^5"
   }
 }
